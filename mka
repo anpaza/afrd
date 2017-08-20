@@ -1,0 +1,4 @@
+#!/bin/sh
+
+export NDK=/usr/local/app/Android/SDK/ndk-bundle
+$NDK/ndk-build $*

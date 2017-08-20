@@ -1,0 +1,16 @@
+cfg_parse 1.0
+Greg Kennedy 2012
+kennedy.greg@gmail.com
+
+cfg_parse is a simple command-line parser
+
+I got sick of the search for something that handles key-value pairs
+  gracefully and simply, so I rolled my own.
+
+Inclusion in your own projects is easy: simply copy cfg_parse.h/c to your
+  src folder, and compile them right in
+
+See main.c for usage examples.
+
+This software is released into the public domain: no warranty (expressed
+  or implied), use at your own risk, etc. etc.
