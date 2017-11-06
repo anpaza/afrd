@@ -49,7 +49,7 @@ static bool uevent_open (int buf_sz)
 
 	g_uevent_sock = socket (PF_NETLINK, SOCK_DGRAM | SOCK_CLOEXEC, NETLINK_KOBJECT_UEVENT);
 	if (g_uevent_sock < 0)
-		return -1;
+		return false;
 
 	setsockopt (g_uevent_sock, SOL_SOCKET, SO_RCVBUFFORCE, &buf_sz, sizeof (buf_sz));
 
