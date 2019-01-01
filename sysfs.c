@@ -33,12 +33,20 @@ error:
 
 char *sysfs_get_str (const char *device, const char *attr)
 {
+	char *ret;
 	if (attr) {
 		char tmp [200];
 		snprintf (tmp, sizeof (tmp), "%s/%s", device, attr);
-		return sysfs_read (tmp);
+		ret = sysfs_read (tmp);
 	} else
-		return sysfs_read (device);
+		ret = sysfs_read (device);
+
+	// remove trailing spaces
+	char *eol = strchr (ret, 0);
+	while ((eol > ret) && strchr ("\r\n\t ", eol [-1]))
+		eol--;
+	*eol = 0;
+	return ret;
 }
 
 int sysfs_get_int (const char *device, const char *attr)
@@ -47,6 +55,11 @@ int sysfs_get_int (const char *device, const char *attr)
 	char *vals = sysfs_get_str (device, attr);
 	if (!vals)
 		return -1;
+
+        /* may be something like HDMI=1 */
+        char *eq = strchr (vals, '=');
+        if (eq != NULL)
+            vals = eq + 1;
 
 	val = strtol (vals, NULL, 0);
 	free (vals);

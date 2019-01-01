@@ -25,6 +25,8 @@ static int g_uevent_sock = -1;
 const char *g_video_mode = NULL;
 int g_mode_switch_delay_on;
 int g_mode_switch_delay_off;
+static const char **g_uevent_filter;
+static int g_uevent_filter_size = 0;
 
 /**
  * The one-shot timer used to switch display mode.
@@ -70,44 +72,35 @@ static bool uevent_open (int buf_sz)
 // hz is framerate in Hertz, 24.8 fixed-point format
 static void framerate_switch (unsigned hz)
 {
-	static unsigned old_hz;
+	static display_mode_t saved_mode;
 
-	if (hz)
-		trace (1, "Switching framerate to %u.%02u Hz\n", hz >> 8, (100 * (hz & 255)) >> 8);
-	else {
-		if (old_hz == 0)
-			return;
-		trace (1, "Restoring old framerate (%u hz)\n", old_hz);
-	}
+	trace (1, "%s display mode\n", hz ? "Switching" : "Restoring");
 
 	int hs = sysfs_get_int (g_hdmi_state, NULL);
 	if (hs <= 0) {
 		trace (1, "HDMI not active, failing\n");
 
 		// forget saved framerate and quit
-		old_hz = 0;
+		memset (&saved_mode, 0, sizeof (saved_mode));
 		return;
 	}
 
-	if (display_mode_init () != 0)
-		return;
-
-	unsigned target_hz;
 	if (hz == 0) {
-		if (old_hz == 0) {
-			trace (1, "Don't know what framerate to restore\n");
+		if (!saved_mode.name) {
+			trace (1, "No saved display mode to restore\n");
 			return;
 		}
 
-		target_hz = old_hz << 8;
-		old_hz = 0;
-	} else
-		target_hz = hz;
+		display_mode_switch (&saved_mode);
+		saved_mode.name = NULL;
+		return;
+	}
 
-	trace (1, "Searching best match display mode for %u x %u @ %u.%02u Hz%s\n",
-		g_current_mode.width, g_current_mode.height,
-		target_hz >> 8, (100 * (target_hz & 255)) >> 8,
-		g_current_mode.interlaced ? ", interlaced" : "");
+	if (display_modes_init () != 0)
+		return;
+
+	trace (1, "Searching best match display mode for "DISPMODE_FMT"\n",
+		DISPMODE_ARGS (g_current_mode, hz));
 
 	/* Find the video mode that:
 	 * a) Has same width and height and interlace flag
@@ -115,9 +108,10 @@ static void framerate_switch (unsigned hz)
 	 * c) Has the highest framerate (e.g. 50Hz display modes are
 	 *    better than 25Hz display modes for displaying 25Hz video)
 	 */
-	display_mode_t *best_mode = NULL;
+	display_mode_t best_mode;
 	unsigned best_rating = 0;
 	int i;
+	best_mode.name = NULL;
 	for (i = 0; i < g_modes_n; i++) {
 		display_mode_t *mode = &g_modes [i];
 		if ((mode->width != g_current_mode.width) ||
@@ -126,41 +120,42 @@ static void framerate_switch (unsigned hz)
 			continue;
 
 		unsigned rating = 0;
-		unsigned rate = (mode->framerate << 16) / target_hz;
+		unsigned rate_n = 1;
+		unsigned rate = (mode->framerate << 16) / hz;
 		while (rate > 0x180) {
-			rate >>= 1;
+			rate_n++;
+			rate = (mode->framerate << 16) / (hz * rate_n);
 			rating += 8;
 		}
 
 		unsigned delta = abs ((int)(rate - 0x100));
-		if (delta >= 3)
-			continue; // freq error > 1%
+		if (delta > 3)
+			continue; // freq error > 1.17%
 
 		rating += (2 - delta) * 64;
 
 		if (rating > best_rating) {
 			best_rating = rating;
-			best_mode = mode;
+			best_mode = *mode;
+			// decide if integer or fractional framerate is better
+			display_mode_set_hz (&best_mode, hz);
 		}
 	}
 
-	if (!best_mode) {
+	if (!best_mode.name) {
 		trace (1, "Failed to find a suitable display mode\n");
 		return;
 	}
 
-	if (display_mode_equal (best_mode, &g_current_mode)) {
+	if (display_mode_equal (&best_mode, &g_current_mode)) {
 		trace (1, "Current display mode is the best match\n");
 		return;
 	}
 
-	trace (1, "Switching to best match display mode %u x %u @ %u Hz%s\n",
-		best_mode->width, best_mode->height, best_mode->framerate,
-		best_mode->interlaced ? ", interlaced" : "");
-
-	if ((hz != 0) && (old_hz == 0))
-		old_hz = g_current_mode.framerate;
-	sysfs_write (g_video_mode, best_mode->name);
+	// remember current video mode to restore it later
+	if ((hz != 0) && (!saved_mode.name))
+		saved_mode = g_current_mode;
+	display_mode_switch (&best_mode);
 }
 
 static void delayed_framerate_switch (unsigned hz)
@@ -176,44 +171,47 @@ static void delayed_framerate_switch (unsigned hz)
 
 static void handle_uevent (const char *msg, ssize_t size)
 {
-	static const char *frame_rate_hint;
-	static const char *frame_rate_end_hint;
-	typedef struct {
-		const char *kw;
-		const char *val;
-		bool is_var;
-	} kw_action_t;
-	static const kw_action_t keywords [] = {
-		{ "SUBSYSTEM", "tv" },
-		{ "DEVNAME", "tv" },
-		{ "ACTION", "change" },
-		{ "FRAME_RATE_HINT", (const char *)&frame_rate_hint, true },
-		{ "FRAME_RATE_END_HINT", (const char *)&frame_rate_end_hint, true },
-	};
+	bool failed = false;
+	const char *frame_rate_hint = NULL;
+	const char *frame_rate_end_hint = NULL;
+
+	trace (2, "Parsing uevent\n");
 
 	frame_rate_hint = NULL;
 	frame_rate_end_hint = NULL;
 	for (const char *end = msg + size; msg < end; msg += strlen (msg) + 1) {
+		trace (2, "\t> %s\n", msg);
+
 		const char *eq = strchr (msg, '=');
 		if (!eq)
 			eq = strchr (msg, 0);
+		int skwl = eq - msg;
+		if (*eq)
+			eq++;
 
-		for (int i = 0; i < ARRAY_SIZE (keywords); i++) {
-			size_t kwl = strlen (keywords [i].kw);
-			if ((kwl == eq - msg) && !memcmp (keywords [i].kw, msg, kwl)) {
-				if (*eq)
-					eq++;
-				if (keywords [i].is_var)
-					*((const char **)keywords [i].val) = eq;
-				else if (strcmp (keywords [i].val, eq))
+		if ((skwl == 15) &&
+		    !memcmp (msg, "FRAME_RATE_HINT", 15))
+			frame_rate_hint = eq;
+		else if ((skwl == 19) &&
+		    !memcmp (msg, "FRAME_RATE_END_HINT", 19))
+			frame_rate_end_hint = eq;
+		else for (int i = 0; i < g_uevent_filter_size; i++) {
+			const char **kw = &g_uevent_filter [i * 2];
+			size_t tkwl = strlen (kw [0]);
+			if ((tkwl == skwl) && !memcmp (kw [0], msg, tkwl) &&
+			    strcmp (kw [1], eq)) {
+				failed = true;
+				trace (2, "\tUnknown keyword value '%s'\n", eq);
+				if (g_verbose == 0)
 					return;
 			}
 		}
 	}
 
-	if ((!frame_rate_hint && !frame_rate_end_hint) ||
-	    (frame_rate_hint && frame_rate_end_hint))
+	if (failed || (!frame_rate_hint == !frame_rate_end_hint)) {
+		trace (2, "\tNot a framerate hint\n");
 		return;
+	}
 
 	if (frame_rate_hint) {
 		char *end;
@@ -275,16 +273,55 @@ static void handle_uevents ()
 
 /* --------- * --------- * --------- * --------- * --------- * --------- */
 
+static bool load_uevent_filter (int idx)
+{
+	char kw [32];
+
+	snprintf (kw, sizeof (kw), "uevent.filter.%d", idx);
+	const char *val = cfg_get_str (kw, NULL);
+	if (!val)
+		return false;
+
+	int fi = g_uevent_filter_size * 2;
+	g_uevent_filter_size++;
+	g_uevent_filter = realloc (g_uevent_filter, 2 * g_uevent_filter_size * sizeof (char *));
+
+	const char *eq = strchr (val, '=');
+	if (!eq)
+		eq = strchr (val, 0);
+	int skwl = eq - val;
+	if (*eq)
+		eq++;
+
+	g_uevent_filter [fi] = strndup (val, skwl);
+	g_uevent_filter [fi + 1] = strdup (eq);
+
+	trace (1, "\tuevent filter: %s = %s\n",
+		g_uevent_filter [fi], g_uevent_filter [fi + 1]);
+
+	return true;
+}
+
 int afrd_init ()
 {
+	int i;
+
+	trace (1, "afrd is initializing\n");
+
 	g_hdmi_dev = cfg_get_str ("hdmi.dev", DEFAULT_HDMI_DEV);
 	g_hdmi_state = cfg_get_str ("hdmi.state", DEFAULT_HDMI_STATE);
 	g_video_mode = cfg_get_str ("video.mode", DEFAULT_VIDEO_MODE);
 	g_mode_switch_delay_on = cfg_get_int ("switch.delay.on", DEFAULT_MODE_SWITCH_DELAY_ON);
 	g_mode_switch_delay_off = cfg_get_int ("switch.delay.off", DEFAULT_MODE_SWITCH_DELAY_OFF);
 
-	if (!uevent_open (16 * 1024))
+	for (i = 0; i < 100; i++)
+		if (!load_uevent_filter (i))
+			break;
+
+	if (!uevent_open (16 * 1024)) {
+		fprintf (stderr, "%s: failed to open uevent socket", g_program);
 		return EPERM;
+	}
 
 	return 0;
 }
@@ -294,14 +331,16 @@ void afrd_run ()
 	if (g_uevent_sock == -1)
 		return;
 
+	trace (1, "afrd running\n");
+
 	struct pollfd pfd;
 	pfd.events = POLLIN;
 	pfd.fd = g_uevent_sock;
 
+	mstime_disable (&ost_switch);
+
 	while (!g_shutdown) {
-		int to = -1;
-		if (mstime_enabled (&ost_switch))
-			to = mstime_left (&ost_switch);
+		int to = mstime_left (&ost_switch);
 
 		// wait until either a new uevent comes
 		// or the delayed mode switch timer expires
@@ -317,8 +356,10 @@ void afrd_run ()
 
 		// if mode switch timer expired, switch the mode finally
 		if (mstime_enabled (&ost_switch) &&
-		    mstime_expired (&ost_switch))
+		    mstime_expired (&ost_switch)) {
+			mstime_disable (&ost_switch);
 			framerate_switch (need_hz);
+		}
 	}
 
 	// restore framerate just in case
@@ -331,4 +372,15 @@ void afrd_fini ()
 		close (g_uevent_sock);
 		g_uevent_sock = -1;
 	}
+
+	if (g_uevent_filter) {
+		int i;
+		for (i = 0; i < 2 * g_uevent_filter_size; i++)
+			free ((void *)g_uevent_filter [i]);
+		free (g_uevent_filter);
+		g_uevent_filter = NULL;
+		g_uevent_filter_size = 0;
+	}
+
+	display_modes_finit ();
 }

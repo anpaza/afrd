@@ -57,9 +57,9 @@ static inline void mstime_update ()
  * @arg ms
  *      Number of milliseconds to wait.
  */
-static void mstime_arm (mstime_t *timer, uint32_t ms)
+static inline void mstime_arm (mstime_t *timer, uint32_t ms)
 {
-	uint32_t t = g_mstime + ms;
+	mstime_t t = g_mstime + ms;
 	if (!t) t = 1;
 	*timer = t;
 }
@@ -88,12 +88,14 @@ static inline void mstime_disable (mstime_t *timer)
  * @arg timer
  *      A pointer to the variable that holds the timer.
  * @return
- *      Returns 0 if timer is disabled, or number of milliseconds until it expires.
+ *      -1 if timer is disabled,
+ *      0 if timer is expired,
+ *      otherwise milliseconds until expiration.
  */
-static inline mstime_t mstime_left (mstime_t *timer)
+static inline int mstime_left (mstime_t *timer)
 {
 	if (!mstime_enabled (timer))
-		return 0;
+		return -1;
 
 	mstime_t diff = *timer - g_mstime;
 	if (((int32_t)diff) >= 0)

@@ -7,6 +7,7 @@
  */
 
 #include "mstime.h"
+#include <stdlib.h>
 #include <sys/time.h>
 
 mstime_t g_mstime;

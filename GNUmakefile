@@ -32,7 +32,7 @@ $(OUT).stamp.dir:
 	mkdir -p $(@D)
 	touch $@
 
-AFRD_SRC = main.c afrd.c sysfs.c cfg_parse.c cfg.c modes.c
+AFRD_SRC = main.c afrd.c sysfs.c cfg_parse.c cfg.c modes.c mstime.c
 
 $(OUT)afrd: $(addprefix $(OUT),$(AFRD_SRC:.c=.o))
 	$(LD) $(LDFLAGS.local) $(LDFLAGS) -o $@ $^

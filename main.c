@@ -18,6 +18,7 @@
 const char *g_version = "0.1.0";
 const char *g_config = "/etc/afrd.ini";
 const char *g_pidfile = "/var/run/afrd.pid";
+const char *g_program;
 int g_verbose = 0;
 int g_daemon = 0;
 int g_kill_daemon = 0;
@@ -77,9 +78,14 @@ static int load_config (const char *config)
 	g_cfg = cfg_init ();
 
 	if ((ret = cfg_load (g_cfg, config)) < 0) {
-		fprintf (stderr, "failed to load config file '%s'\n", config);
+		cfg_free (g_cfg);
+		g_cfg = NULL;
+		fprintf (stderr, "%s: failed to load config file '%s'\n",
+			g_program, config);
 		return ret;
 	}
+
+	trace (1, "\tsuccess\n");
 
 	return 0;
 }
@@ -92,7 +98,7 @@ static void daemonize ()
 
 	pid = fork ();
 	if (pid < 0) {
-		fprintf (stderr, "can't demonize.\naborted.\n");
+		fprintf (stderr, "%s: can't demonize, aborting\n", g_program);
 		exit (-1);
 	}
 
@@ -103,7 +109,8 @@ static void daemonize ()
 			write (h, tmp, snprintf (tmp, sizeof (tmp), "%d", pid));
 			close (h);
 		} else
-			fprintf (stderr, "failed to write pid file '%s'\n", g_pidfile);
+			fprintf (stderr, "%s: failed to write pid file '%s'\n",
+				g_program, g_pidfile);
 
 		/* successfuly daemonized */
 		exit (2);
@@ -123,7 +130,8 @@ static int kill_daemon ()
 
 	h = open (g_pidfile, O_RDONLY);
 	if (h < 0) {
-		fprintf (stderr, "failed to read pid from file '%s'\n", g_pidfile);
+		fprintf (stderr, "%s: failed to read pid from file '%s'\n",
+			g_program, g_pidfile);
 		return -1;
 	}
 
@@ -138,7 +146,8 @@ static int kill_daemon ()
 	close (h);
 
 	if (ok != 0)
-		fprintf (stderr, "failed to kill daemon pid %d\n", pid);
+		fprintf (stderr, "%s: failed to kill daemon pid %d\n",
+			g_program, pid);
 
 	return ok;
 }
@@ -146,6 +155,8 @@ static int kill_daemon ()
 int main (int argc, char *const *argv)
 {
 	int ret;
+
+	g_program = argv [0];
 
 	while ((ret = getopt (argc, argv, "Dp:khvV")) >= 0)
 		switch (ret) {
@@ -183,13 +194,15 @@ int main (int argc, char *const *argv)
 	// load the config files mentioned on command line, until one loads
 	while (optind < argc)
 		if ((ret = load_config (argv [optind++])) == 0)
-			goto configured;
+			break;
 
         // as a last resort, try to load default config
-	if ((ret = load_config (g_config)) != 0)
+	if (!g_cfg && (ret = load_config (g_config)) != 0) {
+		fprintf (stderr, "%s: failed to load any config files\n",
+			g_program);
 		goto leave;
+	}
 
-configured:
 	if ((ret = afrd_init ()) < 0)
 		goto leave;
 
