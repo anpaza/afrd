@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 
@@ -111,10 +112,11 @@ static void daemonize ()
 	}
 
 	if (pid != 0) {
-#ifdef ANDROID
-		if (strncmp (g_pidfile, "/dev/run/", 9) == 0)
-			mkdir ("/dev/run", 0755);
-#endif
+		/* if directory for pid file does not exist, try to create it */
+		char *dn = dirname (g_pidfile);
+		if (*dn && (access (dn, F_OK) != 0))
+			mkdir (dn, 0755);
+
 		int h = open (g_pidfile, O_CREAT | O_WRONLY, 0644);
 		if (h >= 0) {
 			char tmp [10];
