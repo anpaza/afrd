@@ -25,8 +25,12 @@ static int g_uevent_sock = -1;
 const char *g_video_mode = NULL;
 int g_mode_switch_delay_on;
 int g_mode_switch_delay_off;
-static const char **g_uevent_filter;
-static int g_uevent_filter_size = 0;
+int g_mode_switch_delay_retry;
+static const char *g_vdec_status = NULL;
+static char *g_uevent_filter_frhint = NULL;
+static int g_uevent_filter_frhint_len = 0;
+static char *g_uevent_filter_vdec = NULL;
+static int g_uevent_filter_vdec_len = 0;
 
 /**
  * The one-shot timer used to switch display mode.
@@ -38,7 +42,17 @@ static int g_uevent_filter_size = 0;
  * allow to accumulate several mode switches into one 
  */
 static mstime_t ost_switch;
-static int need_hz;
+
+/**
+ * What we need to do after ost_switch expires
+ */
+static struct
+{
+	// true to restore original refresh rate, false to set RR from current movie
+	bool restore;
+	// desired refresh rate in hz (fixed-point 24.8) if known, or 0 if not known
+	int hz;
+} need;
 
 static bool uevent_open (int buf_sz)
 {
@@ -69,13 +83,93 @@ static bool uevent_open (int buf_sz)
 	return true;
 }
 
-// hz is framerate in Hertz, 24.8 fixed-point format
-static void framerate_switch (unsigned hz)
+static void strip_trailing_spaces (char *eol, const char *start)
+{
+	while (eol > start) {
+		eol--;
+		if (strchr (" \t\r\n", *eol) == NULL)
+			return;
+		*eol = 0;
+	}
+}
+
+static void query_vdec ()
+{
+	if (!g_vdec_status)
+		return;
+
+	trace (2, "Querying movie parameters from vdec\n");
+
+	FILE *vsf = fopen (g_vdec_status, "r");
+	if (!vsf) {
+		trace (1, "Failed to open %s\n", g_vdec_status);
+		return;
+	}
+
+	// the values we're going to extract
+	long fps = 0, frame_dur = 0;
+
+	char line [200];
+	while (fgets (line, sizeof (line), vsf)) {
+		// Bionic sscanf sucks badly, so parse the string manually...
+		char *cur = line;
+		const char *attr, *val;
+
+		while (strchr (" \t", *cur))
+			cur++;
+
+		attr = cur;
+		while (*cur && (*cur != ':'))
+			cur++;
+		if (!*cur)
+			continue;
+		*cur = 0;
+		strip_trailing_spaces (cur, attr);
+		cur++;
+		while (strchr (" \t", *cur))
+			cur++;
+
+		val = cur;
+		cur = strchr (cur, 0);
+		strip_trailing_spaces (cur, val);
+
+		trace (2, "\tattr [%s] val [%s]\n", attr, val);
+
+		if (strcmp (attr, "frame rate") == 0) {
+			char *endp;
+			fps = strtol (val, &endp, 10);
+			if (*endp != 0)
+				fps = 0;
+		} else if (strcmp (attr, "frame dur") == 0) {
+			char *endp;
+			frame_dur = strtol (val, &endp, 10);
+			if (*endp != 0)
+				frame_dur = 0;
+		}
+	}
+
+	fclose (vsf);
+
+	// Prefer frame_dur over fps, but sometimes it's 0
+	if (frame_dur)
+		need.hz = (256*96000 + frame_dur / 2) / frame_dur;
+	else if (fps) {
+		switch (fps) {
+			case 23: need.hz = (256 * 23.97); break;
+			case 29: need.hz = (256 * 29.97); break;
+			case 59: need.hz = (256 * 59.94); break;
+			default: need.hz = 256 * fps; break;
+		}
+	}
+}
+
+static void framerate_switch ()
 {
 	static display_mode_t saved_mode;
 
-	trace (1, "%s display mode\n", hz ? "Switching" : "Restoring");
+	trace (1, "%s display mode\n", need.restore ? "Restoring" : "Switching");
 
+	// check if TV is plugged in and on
 	int hs = sysfs_get_int (g_hdmi_state, NULL);
 	if (hs <= 0) {
 		trace (1, "HDMI not active, failing\n");
@@ -85,7 +179,7 @@ static void framerate_switch (unsigned hz)
 		return;
 	}
 
-	if (hz == 0) {
+	if (need.restore) {
 		if (!saved_mode.name) {
 			trace (1, "No saved display mode to restore\n");
 			return;
@@ -96,11 +190,22 @@ static void framerate_switch (unsigned hz)
 		return;
 	}
 
+	// if we don't known movie refresh rate, ask vdec
+	if (need.hz == 0) {
+		query_vdec ();
+		if (need.hz == 0) {
+			// Cannot determine movie frame rate, retry later
+			if (g_mode_switch_delay_retry)
+				mstime_arm (&ost_switch, g_mode_switch_delay_retry);
+			return;
+		}
+	}
+
 	if (display_modes_init () != 0)
 		return;
 
-	trace (1, "Searching best match display mode for "DISPMODE_FMT"\n",
-		DISPMODE_ARGS (g_current_mode, hz));
+	trace (1, "Searching display mode similar to %s at %u.%02uHz\n",
+		g_current_mode.name, need.hz >> 8, (100 * (need.hz & 255)) >> 8);
 
 	/* Find the video mode that:
 	 * a) Has same width and height and interlace flag
@@ -121,10 +226,10 @@ static void framerate_switch (unsigned hz)
 
 		unsigned rating = 0;
 		unsigned rate_n = 1;
-		unsigned rate = (mode->framerate << 16) / hz;
+		unsigned rate = (mode->framerate << 16) / need.hz;
 		while (rate > 0x180) {
 			rate_n++;
-			rate = (mode->framerate << 16) / (hz * rate_n);
+			rate = (mode->framerate << 16) / (need.hz * rate_n);
 			rating += 8;
 		}
 
@@ -138,7 +243,7 @@ static void framerate_switch (unsigned hz)
 			best_rating = rating;
 			best_mode = *mode;
 			// decide if integer or fractional framerate is better
-			display_mode_set_hz (&best_mode, hz);
+			display_mode_set_hz (&best_mode, need.hz);
 		}
 	}
 
@@ -153,75 +258,130 @@ static void framerate_switch (unsigned hz)
 	}
 
 	// remember current video mode to restore it later
-	if ((hz != 0) && (!saved_mode.name))
+	if ((need.hz != 0) && (!saved_mode.name))
 		saved_mode = g_current_mode;
 	display_mode_switch (&best_mode);
 }
 
-static void delayed_framerate_switch (unsigned hz)
+/* @param restore true to delay restoring refresh rate to original,
+ *      false to set refresh rate to match currently playing movie.
+ * @param hz screen refresh rate in fixed-point 24.8 format if known,
+ *      or 0 to ask movie refresh rate from vdec.
+ */
+static void delayed_framerate_switch (bool restore, unsigned hz)
 {
-	mstime_t delay = hz ? g_mode_switch_delay_on : g_mode_switch_delay_off;
+	mstime_t delay = restore ? g_mode_switch_delay_off : g_mode_switch_delay_on;
 
 	trace (2, "Delaying switch to %u.%02u Hz by %d ms\n",
 		hz >> 8, (100 * (hz & 255)) >> 8, delay);
 
-	need_hz = hz;
+	if (need.restore != restore) {
+		need.restore = restore;
+		need.hz = hz;
+	}
+	// if we known desired hz, don't overwrite with 0 that may come from vdec uevent
+	if (hz)
+		need.hz = hz;
+
 	mstime_arm (&ost_switch, delay);
+}
+
+static bool uevent_filter_match (const char *kw, int kwlen, const char *val,
+	const char *filter, int filter_count)
+{
+	size_t valen = strlen (val);
+	const char *fkw = filter;
+	while (filter_count--) {
+		const char *fval = strchr (fkw, '=');
+		if (!fval)
+			fval = strchr (fkw, 0);
+
+		if ((kwlen == (fval - fkw)) &&
+		    (memcmp (kw, fkw, kwlen) == 0)) {
+			/* keyword matched, now check value */
+			if (*fval)
+				fval++;
+			size_t fvalen = strlen (fval);
+			/* allow filter value to specify just the prefix of attr value */
+			if ((fvalen <= valen) &&
+			    (memcmp (val, fval, fvalen) == 0))
+				return true;
+
+			/* keywords never repeat in a single uevent, so we fail */
+			return false;
+		}
+
+		fkw = strchr (fval, 0) + 1;
+	}
+
+	return false;
 }
 
 static void handle_uevent (const char *msg, ssize_t size)
 {
-	bool failed = false;
-	const char *frame_rate_hint = NULL;
-	const char *frame_rate_end_hint = NULL;
-
 	trace (2, "Parsing uevent\n");
 
-	frame_rate_hint = NULL;
-	frame_rate_end_hint = NULL;
+	const char *frame_rate_hint = NULL;
+	const char *frame_rate_end_hint = NULL;
+	const char *action = NULL;
+
+	// decide which of the two event kinds we handle is this
+	int uev_frhint_len = 0;
+	int uev_vdec_len = 0;
+
 	for (const char *end = msg + size; msg < end; msg += strlen (msg) + 1) {
 		trace (2, "\t> %s\n", msg);
 
-		const char *eq = strchr (msg, '=');
-		if (!eq)
-			eq = strchr (msg, 0);
-		int skwl = eq - msg;
-		if (*eq)
-			eq++;
+		const char *val = strchr (msg, '=');
+		if (!val)
+			val = strchr (msg, 0);
+		int skwl = val - msg;
+		if (*val)
+			val++;
 
+		/* look for keywords we are interested */
 		if ((skwl == 15) &&
 		    !memcmp (msg, "FRAME_RATE_HINT", 15))
-			frame_rate_hint = eq;
+			frame_rate_hint = val;
 		else if ((skwl == 19) &&
 		    !memcmp (msg, "FRAME_RATE_END_HINT", 19))
-			frame_rate_end_hint = eq;
-		else for (int i = 0; i < g_uevent_filter_size; i++) {
-			const char **kw = &g_uevent_filter [i * 2];
-			size_t tkwl = strlen (kw [0]);
-			if ((tkwl == skwl) && !memcmp (kw [0], msg, tkwl) &&
-			    strcmp (kw [1], eq)) {
-				failed = true;
-				trace (2, "\tUnknown keyword value '%s'\n", eq);
-				if (g_verbose == 0)
-					return;
+			frame_rate_end_hint = val;
+		else if ((skwl == 6) &&
+		    !memcmp (msg, "ACTION", 6))
+			action = val;
+
+		/* and count matches for every kind of uevent */
+		if (uevent_filter_match (msg, skwl, val,
+			g_uevent_filter_frhint, g_uevent_filter_frhint_len))
+			uev_frhint_len++;
+		if (uevent_filter_match (msg, skwl, val,
+			g_uevent_filter_vdec, g_uevent_filter_vdec_len))
+			uev_vdec_len++;
+	}
+
+	if ((uev_frhint_len == g_uevent_filter_frhint_len) &&
+	    (!frame_rate_hint == !frame_rate_end_hint)) {
+		/* got a framerate hint uevent */
+		if (frame_rate_hint) {
+			char *end;
+			unsigned frh = strtoul (frame_rate_hint, &end, 10);
+			if (frh && (!end || !*end)) {
+				unsigned fr_hz = (256*96000 + frh / 2) / frh;
+				delayed_framerate_switch (false, fr_hz);
 			}
-		}
-	}
+		} else if (frame_rate_end_hint)
+			delayed_framerate_switch (true, 0);
 
-	if (failed || (!frame_rate_hint == !frame_rate_end_hint)) {
-		trace (2, "\tNot a framerate hint\n");
-		return;
-	}
-
-	if (frame_rate_hint) {
-		char *end;
-		unsigned frh = strtoul (frame_rate_hint, &end, 10);
-		if (frh && (!end || !*end)) {
-			unsigned fr_hz = (256*96000 + frh / 2) / frh;
-			delayed_framerate_switch (fr_hz);
-		}
-	} else if (frame_rate_end_hint)
-		delayed_framerate_switch (0);
+	} else if ((uev_vdec_len == g_uevent_filter_vdec_len) &&
+	    (action != NULL)) {
+		/* got a vdec uevent */
+		trace (0, " - got vdec event [%s] -\n", action);
+		if (strcmp (action, "add") == 0)
+			delayed_framerate_switch (false, 0);
+		else if (strcmp (action, "remove") == 0)
+			delayed_framerate_switch (true, 0);
+	} else
+		trace (2, "\tUnrecognized uevent\n");
 }
 
 static void handle_uevents ()
@@ -273,33 +433,57 @@ static void handle_uevents ()
 
 /* --------- * --------- * --------- * --------- * --------- * --------- */
 
-static bool load_uevent_filter (int idx)
+static int load_uevent_filter (const char *kw, char **filter)
 {
-	char kw [32];
-
-	snprintf (kw, sizeof (kw), "uevent.filter.%d", idx);
 	const char *val = cfg_get_str (kw, NULL);
 	if (!val)
-		return false;
+		return 0;
 
-	int fi = g_uevent_filter_size * 2;
-	g_uevent_filter_size++;
-	g_uevent_filter = realloc (g_uevent_filter, 2 * g_uevent_filter_size * sizeof (char *));
+	int count = 0;
+	size_t val_len = strlen (val);
+	char *dst = (*filter) = malloc (val_len + 1);
+	bool skip_spaces = true;
+	char *last_kw = (*filter);
+	while (*val) {
+		switch (*val) {
+			case ',':
+				/* remove trailing spaces */
+				while ((dst > last_kw) && strchr (" \t", dst [-1]))
+					dst--;
+				*dst++ = 0;
 
-	const char *eq = strchr (val, '=');
-	if (!eq)
-		eq = strchr (val, 0);
-	int skwl = eq - val;
-	if (*eq)
-		eq++;
+				count++;
+				trace (1, "\t+ %s: %s\n", kw, last_kw);
 
-	g_uevent_filter [fi] = strndup (val, skwl);
-	g_uevent_filter [fi + 1] = strdup (eq);
+				last_kw = dst;
+				skip_spaces = true;
+				break;
 
-	trace (1, "\tuevent filter: %s = %s\n",
-		g_uevent_filter [fi], g_uevent_filter [fi + 1]);
+			case ' ':
+			case '\t':
+				/* remove leading spaces */
+				if (skip_spaces)
+					break;
+				*dst++ = *val;
+				break;
 
-	return true;
+			default:
+				skip_spaces = false;
+				*dst++ = *val;
+				break;
+		}
+		val++;
+	}
+
+	/* remove trailing spaces from last keyword */
+	while ((dst > last_kw) && strchr (" \t", dst [-1]))
+		dst--;
+	*dst++ = 0;
+
+	count++;
+	trace (1, "\t+ %s: %s\n", kw, last_kw);
+
+	return count;
 }
 
 int afrd_init ()
@@ -313,10 +497,13 @@ int afrd_init ()
 	g_video_mode = cfg_get_str ("video.mode", DEFAULT_VIDEO_MODE);
 	g_mode_switch_delay_on = cfg_get_int ("switch.delay.on", DEFAULT_MODE_SWITCH_DELAY_ON);
 	g_mode_switch_delay_off = cfg_get_int ("switch.delay.off", DEFAULT_MODE_SWITCH_DELAY_OFF);
+	g_mode_switch_delay_retry = cfg_get_int ("switch.delay.retry", DEFAULT_MODE_SWITCH_DELAY_RETRY);
+	g_vdec_status = cfg_get_str ("vdec.status", DEFAULT_VDEC_STATUS);
 
-	for (i = 0; i < 100; i++)
-		if (!load_uevent_filter (i))
-			break;
+	g_uevent_filter_frhint_len =
+		load_uevent_filter ("uevent.filter.frhint", &g_uevent_filter_frhint);
+	g_uevent_filter_vdec_len =
+		load_uevent_filter ("uevent.filter.vdec", &g_uevent_filter_vdec);
 
 	if (!uevent_open (16 * 1024)) {
 		fprintf (stderr, "%s: failed to open uevent socket", g_program);
@@ -358,12 +545,13 @@ void afrd_run ()
 		if (mstime_enabled (&ost_switch) &&
 		    mstime_expired (&ost_switch)) {
 			mstime_disable (&ost_switch);
-			framerate_switch (need_hz);
+			framerate_switch ();
 		}
 	}
 
 	// restore framerate just in case
-	framerate_switch (0);
+	need.restore = true;
+	framerate_switch ();
 }
 
 void afrd_fini ()
@@ -373,13 +561,13 @@ void afrd_fini ()
 		g_uevent_sock = -1;
 	}
 
-	if (g_uevent_filter) {
-		int i;
-		for (i = 0; i < 2 * g_uevent_filter_size; i++)
-			free ((void *)g_uevent_filter [i]);
-		free (g_uevent_filter);
-		g_uevent_filter = NULL;
-		g_uevent_filter_size = 0;
+	if (g_uevent_filter_frhint) {
+		free (g_uevent_filter_frhint);
+		g_uevent_filter_frhint = NULL;
+	}
+	if (g_uevent_filter_vdec) {
+		free (g_uevent_filter_vdec);
+		g_uevent_filter_vdec = NULL;
 	}
 
 	display_modes_finit ();

@@ -17,8 +17,10 @@
 #define DEFAULT_HDMI_DEV		"/sys/class/amhdmitx/amhdmitx0"
 #define DEFAULT_HDMI_STATE		"/sys/class/switch/hdmi/state"
 #define DEFAULT_VIDEO_MODE		"/sys/class/display/mode"
-#define DEFAULT_MODE_SWITCH_DELAY_ON	100
-#define DEFAULT_MODE_SWITCH_DELAY_OFF	2000
+#define DEFAULT_VDEC_STATUS		"/sys/class/vdec/vdec_status"
+#define DEFAULT_MODE_SWITCH_DELAY_ON	250
+#define DEFAULT_MODE_SWITCH_DELAY_OFF	5000
+#define DEFAULT_MODE_SWITCH_DELAY_RETRY	500
 
 #define ARRAY_SIZE(x)			(sizeof (x) / sizeof (x [0]))
 

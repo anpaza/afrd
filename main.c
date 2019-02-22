@@ -8,16 +8,24 @@
 #include <getopt.h>
 #include <stdarg.h>
 #include <time.h>
-#include <sys/time.h>
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/time.h>
+#include <sys/stat.h>
 
 #include "afrd.h"
 
 const char *g_version = "0.1.0";
 const char *g_config = "/etc/afrd.ini";
-const char *g_pidfile = "/var/run/afrd.pid";
+const char *g_pidfile =
+#ifdef ANDROID
+	// android has no standard directory for pid files...
+	// so use /dev/pid/ on tmpfs
+	"/dev/run/afrd.pid";
+#else
+	"/var/run/afrd.pid";
+#endif
 const char *g_program;
 int g_verbose = 0;
 int g_daemon = 0;
@@ -103,6 +111,10 @@ static void daemonize ()
 	}
 
 	if (pid != 0) {
+#ifdef ANDROID
+		if (strncmp (g_pidfile, "/dev/run/", 9) == 0)
+			mkdir ("/dev/run", 0755);
+#endif
 		int h = open (g_pidfile, O_CREAT | O_WRONLY, 0644);
 		if (h >= 0) {
 			char tmp [10];
