@@ -12,6 +12,7 @@
 #include <poll.h>
 #include <linux/netlink.h>
 #include <sys/socket.h>
+#include <math.h>
 
 #ifndef SOCK_CLOEXEC
 #  define SOCK_CLOEXEC O_CLOEXEC
@@ -30,6 +31,8 @@ int g_mode_switch_delay_off;
 int g_mode_switch_delay_retry;
 int g_mode_prefer_exact;
 int g_mode_use_fract;
+int g_mode_blacklist_rates [10];
+int g_mode_blacklist_rates_size;
 
 static uevent_filter_t g_filter_frhint;
 static uevent_filter_t g_filter_vdec;
@@ -94,6 +97,14 @@ static bool uevent_open (int buf_sz)
 	return true;
 }
 
+static bool rate_is_blacklisted (int rate)
+{
+	for (int i = 0; i < g_mode_blacklist_rates_size; i++)
+		if (abs (g_mode_blacklist_rates [i] - rate) <= 1)
+			return true;
+	return false;
+}
+
 static void query_vdec ()
 {
 	if (!g_vdec_status)
@@ -131,7 +142,7 @@ static void query_vdec ()
 		cur = strchr (cur, 0);
 		strip_trailing_spaces (cur, val);
 
-		trace (2, "\tattr [%s] val [%s]\n", attr, val);
+		trace (3, "\tattr [%s] val [%s]\n", attr, val);
 
 		if (strcmp (attr, "frame rate") == 0) {
 			char *endp;
@@ -208,7 +219,8 @@ static void framerate_switch ()
 
 	/* Find the video mode that:
 	 * a) Has same width and height and interlace flag
-	 * b) Closely divides by the required framerate, error less than 1%
+	 * b) Closely divides by the required framerate, error less
+	 *    than 4.1% (difference between 23.976 and 25 Hz)
 	 * c) Has the highest framerate (e.g. 50Hz display modes are
 	 *    better than 25Hz display modes for displaying 25Hz video)
 	 */
@@ -223,7 +235,7 @@ static void framerate_switch ()
 		    (mode->interlaced != g_current_mode.interlaced))
 			continue;
 
-		unsigned rating = 0;
+		int rating = 0;
 		unsigned rate_n = 1;
 		unsigned rate = (mode->framerate << 16) / g_state.hz;
 		while (rate > 0x180) {
@@ -238,16 +250,26 @@ static void framerate_switch ()
 			rating += 8 * (rate_n - 1);
 
 		unsigned delta = abs ((int)(rate - 0x100));
-		if (delta > 3)
-			continue; // freq error > 1.17%
+		if (delta > 11)
+			continue; // freq error > 4.3%
 
-		rating += (3 - delta) * 64;
+		rating += (21 - delta) * 64;
 
 		if (rating > best_rating) {
-			best_rating = rating;
-			best_mode = *mode;
+			display_mode_t tmp = *mode;
 			// decide if integer or fractional framerate is better
 			display_mode_set_hz (&best_mode, g_state.hz);
+
+			// if framerate is blacklisted, try to invert fractional
+			if (rate_is_blacklisted (display_mode_hz (&tmp))) {
+				tmp.fractional = !tmp.fractional;
+				if (rate_is_blacklisted (display_mode_hz (&tmp)))
+					// no luck, both framerates are banned
+					continue;
+			}
+
+			best_rating = rating;
+			best_mode = tmp;
 		}
 	}
 
@@ -311,7 +333,7 @@ static void handle_uevent (char *msg, ssize_t size)
 	uevent_filter_reset (&g_filter_hdmi);
 
 	for (const char *end = msg + size; msg < end; msg += strlen (msg) + 1) {
-		trace (2, "\t> %s\n", msg);
+		trace (3, "\t> %s\n", msg);
 
 		char *val = strchr (msg, '=');
 		if (val)
@@ -410,6 +432,44 @@ static void handle_uevents ()
 	}
 }
 
+static void blacklist_rates_load (const char *kw)
+{
+	g_mode_blacklist_rates_size = 0;
+
+	const char *str = cfg_get_str (kw, NULL);
+	if (!str)
+		return;
+
+	trace (1, "\tloading blacklisted rates\n");
+
+	char *tmp = strdup (str);
+	char *cur = tmp + strspn (tmp, spaces);
+	while (cur && *cur) {
+		char *comma = strchr (cur, ',');
+		if (comma) {
+			strip_trailing_spaces (comma, cur);
+			comma++;
+			comma += strspn (comma, spaces);
+		} else {
+			strip_trailing_spaces (strchr (cur, 0), cur);
+			comma = NULL;
+		}
+
+		float rate;
+		if ((sscanf (cur, "%f", &rate) == 1) &&
+		    (g_mode_blacklist_rates_size < ARRAY_SIZE (g_mode_blacklist_rates))) {
+			int irate = (int)round (rate * 256.0);
+			g_mode_blacklist_rates [g_mode_blacklist_rates_size] = irate;
+			g_mode_blacklist_rates_size++;
+			trace (2, "\t+ %u.%02uHz\n", irate >> 8, (100 * (irate & 255)) >> 8);
+		}
+
+		cur = comma;
+	}
+
+	free (tmp);
+}
+
 /* --------- * --------- * --------- * --------- * --------- * --------- */
 
 int afrd_init ()
@@ -425,6 +485,8 @@ int afrd_init ()
 	g_vdec_status = cfg_get_str ("vdec.status", DEFAULT_VDEC_STATUS);
 	g_mode_prefer_exact = cfg_get_int ("mode.prefer.exact", DEFAULT_MODE_PREFER_EXACT);
 	g_mode_use_fract = cfg_get_int ("mode.use.fract", DEFAULT_MODE_USE_FRACT);
+
+	blacklist_rates_load ("mode.blacklist.rates");
 
 	uevent_filter_load (&g_filter_frhint, "uevent.filter.frhint");
 	uevent_filter_load (&g_filter_vdec, "uevent.filter.vdec");

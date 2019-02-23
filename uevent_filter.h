@@ -34,5 +34,7 @@ extern bool uevent_filter_matched (uevent_filter_t *uevf);
 
 /// Helper function
 void strip_trailing_spaces (char *eol, const char *start);
+/// The list of spaces characters
+extern const char *spaces;
 
 #endif /* __UEVENT_FILTER_H__ */

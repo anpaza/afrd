@@ -1,7 +1,7 @@
 #include "afrd.h"
 #include "uevent_filter.h"
 
-static const char *spaces = " \t\r\n";
+const char *spaces = " \t\r\n";
 
 void strip_trailing_spaces (char *eol, const char *start)
 {
@@ -39,7 +39,7 @@ static bool append_rex (uevent_filter_t *uevf, char *str)
 
 	uevf->attr [uevf->size] = str;
 	if (regcomp (&uevf->rex [uevf->size], eq, REG_EXTENDED) != 0) {
-		trace (2, "\t  ignoring bad regex: %s\n", eq);
+		trace (1, "\t  ignoring bad regex: %s\n", eq);
 		return false;
 	}
 
@@ -89,7 +89,7 @@ bool uevent_filter_load (uevent_filter_t *uevf, const char *kw)
 	if (!val)
 		return false;
 
-	trace (2, "\tloading filter %s:\n", kw);
+	trace (1, "\tloading filter %s:\n", kw);
 	return uevent_filter_init (uevf, kw, val);
 }
 

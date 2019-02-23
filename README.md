@@ -133,7 +133,15 @@ recognized by AFRD:
     Android 8+) to avoid a mode switch when watching 30 or 60Hz videos
     you can set this to 1.
 
-vdec.status
+* mode.blacklist.rates
+    This option allows you to blacklist some refresh rates. For example,
+    AMLogic kernels have a bug in the HDMI driver that sets the 29.976 mode
+    wrong; using this refresh mode cause severe jittering on 23.976 movies.
+    Thus, this refresh rate is blacklisted by default.
+
+    The frame rates in list are separated by ',' characters.
+
+* vdec.status
     This points to sysfs attribute containing the status of the video decoder.
     Usually this is /sys/class/vdec/vdec_status.
 
