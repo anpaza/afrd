@@ -87,10 +87,13 @@ static void strip_trailing_spaces (char *eol, const char *start)
 {
 	while (eol > start) {
 		eol--;
-		if (strchr (" \t\r\n", *eol) == NULL)
+		if (strchr (" \t\r\n", *eol) == NULL) {
+			eol [1] = 0;
 			return;
-		*eol = 0;
+		}
 	}
+
+	eol [0] = 0;
 }
 
 static void query_vdec ()
@@ -115,9 +118,7 @@ static void query_vdec ()
 		char *cur = line;
 		const char *attr, *val;
 
-		while (strchr (" \t", *cur))
-			cur++;
-
+		cur += strspn (cur, " \t\r\n");
 		attr = cur;
 		while (*cur && (*cur != ':'))
 			cur++;
@@ -126,8 +127,7 @@ static void query_vdec ()
 		*cur = 0;
 		strip_trailing_spaces (cur, attr);
 		cur++;
-		while (strchr (" \t", *cur))
-			cur++;
+		cur += strspn (cur, " \t\r\n");
 
 		val = cur;
 		cur = strchr (cur, 0);
@@ -138,13 +138,18 @@ static void query_vdec ()
 		if (strcmp (attr, "frame rate") == 0) {
 			char *endp;
 			fps = strtol (val, &endp, 10);
-			if (*endp != 0)
+			endp += strspn (endp, " \t\r\n");
+			if ((*endp != 0) && (strcmp (endp, "fps") != 0)) {
+				trace (2, "\tgarbage at end of 'frame rate': [%s]\n", endp);
 				fps = 0;
+			}
 		} else if (strcmp (attr, "frame dur") == 0) {
 			char *endp;
 			frame_dur = strtol (val, &endp, 10);
-			if (*endp != 0)
+			if (*endp != 0) {
+				trace (2, "\tgarbage at end of 'frame dur': [%s]\n", endp);
 				frame_dur = 0;
+			}
 		}
 	}
 
@@ -167,7 +172,7 @@ static void framerate_switch ()
 {
 	static display_mode_t saved_mode;
 
-	trace (1, "%s display mode\n", need.restore ? "Restoring" : "Switching");
+	trace (1, "%s display mode\n", need.restore ? "Restoring" : "Setting");
 
 	// check if TV is plugged in and on
 	int hs = sysfs_get_int (g_hdmi_state, NULL);
