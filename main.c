@@ -17,7 +17,7 @@
 
 #include "afrd.h"
 
-const char *g_version = "0.1.0";
+const char *g_version = "0.2.0";
 const char *g_config = "/etc/afrd.ini";
 const char *g_pidfile =
 #ifdef ANDROID
@@ -113,9 +113,11 @@ static void daemonize ()
 
 	if (pid != 0) {
 		/* if directory for pid file does not exist, try to create it */
-		char *dn = dirname (g_pidfile);
+		char *pidfile = strdup (g_pidfile);
+		char *dn = dirname (pidfile);
 		if (*dn && (access (dn, F_OK) != 0))
 			mkdir (dn, 0755);
+		free (pidfile);
 
 		int h = open (g_pidfile, O_CREAT | O_WRONLY, 0644);
 		if (h >= 0) {
@@ -222,7 +224,6 @@ int main (int argc, char *const *argv)
 
 	signal (SIGINT,  signal_handler);
 	signal (SIGQUIT, signal_handler);
-	signal (SIGKILL, signal_handler);
 	signal (SIGTERM, signal_handler);
 
 	afrd_run ();

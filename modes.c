@@ -28,6 +28,9 @@ static int parse_int (char **line)
 static bool mode_parse (char *desc, display_mode_t *mode)
 {
 	memset (mode, 0, sizeof (display_mode_t));
+	if (!desc)
+		return false;
+
 	mode->name = desc;
 
 	if (strncmp (desc, "smpte", 5) == 0) {
@@ -72,6 +75,8 @@ int display_modes_init ()
 	display_modes_finit ();
 
 	char *modes = sysfs_get_str (g_hdmi_dev, "disp_cap");
+	if (!modes)
+		return -1;
 
 	trace (2, "Parsing supported video modes\n");
 

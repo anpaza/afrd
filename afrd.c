@@ -4,6 +4,7 @@
  */
 
 #include "afrd.h"
+#include "uevent_filter.h"
 
 #define __USE_GNU
 #include <unistd.h>
@@ -27,10 +28,9 @@ int g_mode_switch_delay_on;
 int g_mode_switch_delay_off;
 int g_mode_switch_delay_retry;
 static const char *g_vdec_status = NULL;
-static char *g_uevent_filter_frhint = NULL;
-static int g_uevent_filter_frhint_len = 0;
-static char *g_uevent_filter_vdec = NULL;
-static int g_uevent_filter_vdec_len = 0;
+
+static uevent_filter_t g_filter_frhint;
+static uevent_filter_t g_filter_vdec;
 
 /**
  * The one-shot timer used to switch display mode.
@@ -81,19 +81,6 @@ static bool uevent_open (int buf_sz)
 	fcntl (g_uevent_sock, F_SETFL, O_NONBLOCK);
 
 	return true;
-}
-
-static void strip_trailing_spaces (char *eol, const char *start)
-{
-	while (eol > start) {
-		eol--;
-		if (strchr (" \t\r\n", *eol) == NULL) {
-			eol [1] = 0;
-			return;
-		}
-	}
-
-	eol [0] = 0;
 }
 
 static void query_vdec ()
@@ -291,38 +278,7 @@ static void delayed_framerate_switch (bool restore, unsigned hz)
 	mstime_arm (&ost_switch, delay);
 }
 
-static bool uevent_filter_match (const char *kw, int kwlen, const char *val,
-	const char *filter, int filter_count)
-{
-	size_t valen = strlen (val);
-	const char *fkw = filter;
-	while (filter_count--) {
-		const char *fval = strchr (fkw, '=');
-		if (!fval)
-			fval = strchr (fkw, 0);
-
-		if ((kwlen == (fval - fkw)) &&
-		    (memcmp (kw, fkw, kwlen) == 0)) {
-			/* keyword matched, now check value */
-			if (*fval)
-				fval++;
-			size_t fvalen = strlen (fval);
-			/* allow filter value to specify just the prefix of attr value */
-			if ((fvalen <= valen) &&
-			    (memcmp (val, fval, fvalen) == 0))
-				return true;
-
-			/* keywords never repeat in a single uevent, so we fail */
-			return false;
-		}
-
-		fkw = strchr (fval, 0) + 1;
-	}
-
-	return false;
-}
-
-static void handle_uevent (const char *msg, ssize_t size)
+static void handle_uevent (char *msg, ssize_t size)
 {
 	trace (2, "Parsing uevent\n");
 
@@ -330,41 +286,33 @@ static void handle_uevent (const char *msg, ssize_t size)
 	const char *frame_rate_end_hint = NULL;
 	const char *action = NULL;
 
-	// decide which of the two event kinds we handle is this
-	int uev_frhint_len = 0;
-	int uev_vdec_len = 0;
+	uevent_filter_reset (&g_filter_frhint);
+	uevent_filter_reset (&g_filter_vdec);
 
 	for (const char *end = msg + size; msg < end; msg += strlen (msg) + 1) {
 		trace (2, "\t> %s\n", msg);
 
-		const char *val = strchr (msg, '=');
-		if (!val)
+		char *val = strchr (msg, '=');
+		if (val)
+			*val++ = 0;
+		else
 			val = strchr (msg, 0);
-		int skwl = val - msg;
-		if (*val)
-			val++;
 
 		/* look for keywords we are interested */
-		if ((skwl == 15) &&
-		    !memcmp (msg, "FRAME_RATE_HINT", 15))
+		if (strcmp (msg, "FRAME_RATE_HINT") == 0)
 			frame_rate_hint = val;
-		else if ((skwl == 19) &&
-		    !memcmp (msg, "FRAME_RATE_END_HINT", 19))
+		else if (strcmp (msg, "FRAME_RATE_END_HINT") == 0)
 			frame_rate_end_hint = val;
-		else if ((skwl == 6) &&
-		    !memcmp (msg, "ACTION", 6))
+		else if (strcmp (msg, "ACTION") == 0)
 			action = val;
 
 		/* and count matches for every kind of uevent */
-		if (uevent_filter_match (msg, skwl, val,
-			g_uevent_filter_frhint, g_uevent_filter_frhint_len))
-			uev_frhint_len++;
-		if (uevent_filter_match (msg, skwl, val,
-			g_uevent_filter_vdec, g_uevent_filter_vdec_len))
-			uev_vdec_len++;
+		uevent_filter_match (&g_filter_frhint, msg, val);
+		uevent_filter_match (&g_filter_vdec, msg, val);
+		msg = val;
 	}
 
-	if ((uev_frhint_len == g_uevent_filter_frhint_len) &&
+	if (uevent_filter_matched (&g_filter_frhint) &&
 	    (!frame_rate_hint == !frame_rate_end_hint)) {
 		/* got a framerate hint uevent */
 		if (frame_rate_hint) {
@@ -377,10 +325,9 @@ static void handle_uevent (const char *msg, ssize_t size)
 		} else if (frame_rate_end_hint)
 			delayed_framerate_switch (true, 0);
 
-	} else if ((uev_vdec_len == g_uevent_filter_vdec_len) &&
-	    (action != NULL)) {
+	} else if (uevent_filter_matched (&g_filter_vdec) &&
+		   (action != NULL)) {
 		/* got a vdec uevent */
-		trace (0, " - got vdec event [%s] -\n", action);
 		if (strcmp (action, "add") == 0)
 			delayed_framerate_switch (false, 0);
 		else if (strcmp (action, "remove") == 0)
@@ -438,63 +385,8 @@ static void handle_uevents ()
 
 /* --------- * --------- * --------- * --------- * --------- * --------- */
 
-static int load_uevent_filter (const char *kw, char **filter)
-{
-	const char *val = cfg_get_str (kw, NULL);
-	if (!val)
-		return 0;
-
-	int count = 0;
-	size_t val_len = strlen (val);
-	char *dst = (*filter) = malloc (val_len + 1);
-	bool skip_spaces = true;
-	char *last_kw = (*filter);
-	while (*val) {
-		switch (*val) {
-			case ',':
-				/* remove trailing spaces */
-				while ((dst > last_kw) && strchr (" \t", dst [-1]))
-					dst--;
-				*dst++ = 0;
-
-				count++;
-				trace (1, "\t+ %s: %s\n", kw, last_kw);
-
-				last_kw = dst;
-				skip_spaces = true;
-				break;
-
-			case ' ':
-			case '\t':
-				/* remove leading spaces */
-				if (skip_spaces)
-					break;
-				*dst++ = *val;
-				break;
-
-			default:
-				skip_spaces = false;
-				*dst++ = *val;
-				break;
-		}
-		val++;
-	}
-
-	/* remove trailing spaces from last keyword */
-	while ((dst > last_kw) && strchr (" \t", dst [-1]))
-		dst--;
-	*dst++ = 0;
-
-	count++;
-	trace (1, "\t+ %s: %s\n", kw, last_kw);
-
-	return count;
-}
-
 int afrd_init ()
 {
-	int i;
-
 	trace (1, "afrd is initializing\n");
 
 	g_hdmi_dev = cfg_get_str ("hdmi.dev", DEFAULT_HDMI_DEV);
@@ -505,10 +397,8 @@ int afrd_init ()
 	g_mode_switch_delay_retry = cfg_get_int ("switch.delay.retry", DEFAULT_MODE_SWITCH_DELAY_RETRY);
 	g_vdec_status = cfg_get_str ("vdec.status", DEFAULT_VDEC_STATUS);
 
-	g_uevent_filter_frhint_len =
-		load_uevent_filter ("uevent.filter.frhint", &g_uevent_filter_frhint);
-	g_uevent_filter_vdec_len =
-		load_uevent_filter ("uevent.filter.vdec", &g_uevent_filter_vdec);
+	uevent_filter_load (&g_filter_frhint, "uevent.filter.frhint");
+	uevent_filter_load (&g_filter_vdec, "uevent.filter.vdec");
 
 	if (!uevent_open (16 * 1024)) {
 		fprintf (stderr, "%s: failed to open uevent socket", g_program);
@@ -566,14 +456,8 @@ void afrd_fini ()
 		g_uevent_sock = -1;
 	}
 
-	if (g_uevent_filter_frhint) {
-		free (g_uevent_filter_frhint);
-		g_uevent_filter_frhint = NULL;
-	}
-	if (g_uevent_filter_vdec) {
-		free (g_uevent_filter_vdec);
-		g_uevent_filter_vdec = NULL;
-	}
+	uevent_filter_fini (&g_filter_frhint);
+	uevent_filter_fini (&g_filter_vdec);
 
 	display_modes_finit ();
 }

@@ -41,6 +41,9 @@ char *sysfs_get_str (const char *device, const char *attr)
 	} else
 		ret = sysfs_read (device);
 
+	if (!ret)
+		return NULL;
+
 	// remove trailing spaces
 	char *eol = strchr (ret, 0);
 	while ((eol > ret) && strchr ("\r\n\t ", eol [-1]))

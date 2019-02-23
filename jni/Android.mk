@@ -5,7 +5,7 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := afrd
 LOCAL_SRC_FILES := $(addprefix ../,main.c afrd.c sysfs.c cfg_parse/cfg_parse.c \
-	cfg.c modes.c mstime.c)
+	cfg.c modes.c mstime.c uevent_filter.c)
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../cfg_parse
 
 include $(BUILD_EXECUTABLE)
