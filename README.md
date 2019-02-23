@@ -86,9 +86,65 @@ The "frame dur" field is used if not 0 (the actual frame rate is
 96000/frame_dur), and "frame rate" field is used otherwise
 (with 23 fps being 23.976, 29 being 29.970 and 59 being 59.94 fps).
 
-Events are filtered by special event filters in the following format:
+Configuration file
+------------------
 
-uevent.filter.XXX=<keyword>=<regex>[,<keyword>=<regex>...]
+AFRD uses a simple configuration file that can be used to customize
+its behavior. The file contains either comment lines, starting with
+the '#' character, or key=value pairs. The following keywords are
+recognized by AFRD:
+
+* hdmi.dev
+    This keyword defines the sysfs directory with HDMI driver attributes.
+    Usually has the value /sys/class/amhdmitx/amhdmitx0.
+
+* hdmi.state
+    This defines the sysfs file used to check if HDMI is enabled or not.
+    Usually has the value /sys/class/switch/hdmi/state.
+
+* video.mode
+    Points to sysfs file used to switch current video mode.
+    This is usually /sys/class/display/mode.
+
+* switch.delay.on
+* switch.delay.off
+    The time to delay a mode switch when video starts (on) or stops (off).
+    The 'on' delay is usually small, while 'off' should be relatively big
+    to avoid unneeded mode switches at position change or when you're
+    watching a series of videos with same framerate.
+
+* mode.prefer.exact
+    If set is 1, AFRD will prefer exact match of video mode refresh rate
+    to movie frame rate. If 0 (default setting), AFRD will prefer the
+    video mode with highest refresh rate which is a exact multiple of
+    movie frame rate.
+
+    Default value is 0.
+
+* mode.use.fract
+    Choose how AFRD handles fractional frame rates (23.976, 29.97, 59.94 fps):
+
+    * 0 - Use both fractional and integer refresh rates as appropiate
+    * 1 - Prefer fractional refresh rates, even if movie says it uses integer
+    * 2 - Prefer integer refresh rates, even if movie says it uses fractional
+
+    This can be used to limit the number of mode switches, e.g. when your OS
+    is set up to use 59.94Hz refresh rate (the default on AndroidTV boxes with
+    Android 8+) to avoid a mode switch when watching 30 or 60Hz videos
+    you can set this to 1.
+
+vdec.status
+    This points to sysfs attribute containing the status of the video decoder.
+    Usually this is /sys/class/vdec/vdec_status.
+
+* uevent.filter.frhint
+* uevent.filter.vdec
+    These sets the filter for FRAMERATE_HINT and video decoder change
+    kernel uevents.
+
+Event filters use the following format:
+
+    uevent.filter.XXX=<keyword>=<regex>[,<keyword>=<regex>...]
 
 The regular expressions are "extended regular expressions" and are matched
 against the whole attribute value. E.g. regular expression "plat" will not

@@ -86,7 +86,7 @@ int sysfs_write (const char *device_attr, const char *value)
 	return 0;
 
 error:
-	trace (1, "failed to write attr [%s] into %s\n", value, device_attr);
+	trace (1, "failed to write [%s] into %s\n", value, device_attr);
 
 	if (h >= 0)
 		close (h);

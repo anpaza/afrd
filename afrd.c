@@ -24,13 +24,16 @@ const char *g_hdmi_dev = NULL;
 const char *g_hdmi_state = NULL;
 static int g_uevent_sock = -1;
 const char *g_video_mode = NULL;
+static const char *g_vdec_status = NULL;
 int g_mode_switch_delay_on;
 int g_mode_switch_delay_off;
 int g_mode_switch_delay_retry;
-static const char *g_vdec_status = NULL;
+int g_mode_prefer_exact;
+int g_mode_use_fract;
 
 static uevent_filter_t g_filter_frhint;
 static uevent_filter_t g_filter_vdec;
+static uevent_filter_t g_filter_hdmi;
 
 /**
  * The one-shot timer used to switch display mode.
@@ -41,18 +44,26 @@ static uevent_filter_t g_filter_vdec;
  * more uevents during that time, we'll switch the mode. This will
  * allow to accumulate several mode switches into one 
  */
-static mstime_t ost_switch;
+static mstime_t g_ost_switch;
 
 /**
- * What we need to do after ost_switch expires
+ * One more timer to delay querying current video mode after HDMI
+ * link becomes active.
+ */
+static mstime_t g_ost_hdmi;
+
+/**
+ * What mode should we set when g_ost_switch expires
  */
 static struct
 {
-	// true to restore original refresh rate, false to set RR from current movie
+	// true to restore original display mode, false to set from current movie
 	bool restore;
 	// desired refresh rate in hz (fixed-point 24.8) if known, or 0 if not known
 	int hz;
-} need;
+	// the initial video mode (this mode is set when restore==true)
+	display_mode_t orig_mode;
+} g_state;
 
 static bool uevent_open (int buf_sz)
 {
@@ -144,60 +155,56 @@ static void query_vdec ()
 
 	// Prefer frame_dur over fps, but sometimes it's 0
 	if (frame_dur)
-		need.hz = (256*96000 + frame_dur / 2) / frame_dur;
-	else if (fps) {
+		g_state.hz = (256*96000 + frame_dur / 2) / frame_dur;
+	else if ((fps > 0) && (fps <= 1000)) {
 		switch (fps) {
-			case 23: need.hz = (256 * 23.97); break;
-			case 29: need.hz = (256 * 29.97); break;
-			case 59: need.hz = (256 * 59.94); break;
-			default: need.hz = 256 * fps; break;
+			case 23: g_state.hz = (2997 * 256 + 62) / 125; break;
+			case 29: g_state.hz = (2997 * 256 + 50) / 100; break;
+			case 59: g_state.hz = (5994 * 256 + 50) / 100; break;
+			default: g_state.hz = fps << 8; break;
 		}
 	}
 }
 
 static void framerate_switch ()
 {
-	static display_mode_t saved_mode;
-
-	trace (1, "%s display mode\n", need.restore ? "Restoring" : "Setting");
-
-	// check if TV is plugged in and on
-	int hs = sysfs_get_int (g_hdmi_state, NULL);
-	if (hs <= 0) {
-		trace (1, "HDMI not active, failing\n");
-
-		// forget saved framerate and quit
-		memset (&saved_mode, 0, sizeof (saved_mode));
-		return;
-	}
-
-	if (need.restore) {
-		if (!saved_mode.name) {
+	if (g_state.restore) {
+		if (!g_state.orig_mode.name) {
 			trace (1, "No saved display mode to restore\n");
 			return;
 		}
 
-		display_mode_switch (&saved_mode);
-		saved_mode.name = NULL;
+		display_mode_switch (&g_state.orig_mode);
+		g_state.orig_mode.name = NULL;
 		return;
 	}
 
 	// if we don't known movie refresh rate, ask vdec
-	if (need.hz == 0) {
+	if (g_state.hz == 0) {
 		query_vdec ();
-		if (need.hz == 0) {
+		if (g_state.hz == 0) {
 			// Cannot determine movie frame rate, retry later
 			if (g_mode_switch_delay_retry)
-				mstime_arm (&ost_switch, g_mode_switch_delay_retry);
+				mstime_arm (&g_ost_switch, g_mode_switch_delay_retry);
 			return;
 		}
 	}
 
-	if (display_modes_init () != 0)
-		return;
+	// use fractional or integer frame rates if user requested so
+	if (g_mode_use_fract != 0) {
+		display_mode_t tmp;
+		tmp.framerate = (g_state.hz + 0x80) >> 8;
+		tmp.fractional = (g_mode_use_fract == 1);
+		g_state.hz = display_mode_hz (&tmp);
+	}
 
-	trace (1, "Searching display mode similar to %s at %u.%02uHz\n",
-		g_current_mode.name, need.hz >> 8, (100 * (need.hz & 255)) >> 8);
+	display_mode_get_current ();
+
+	trace (1, "Current mode is "DISPMODE_FMT"\n",
+		DISPMODE_ARGS (g_current_mode, display_mode_hz (&g_current_mode)));
+	trace (1, "Looking for display mode closest to %dx%d@%u.%02uHz\n",
+		g_current_mode.width, g_current_mode.height,
+		g_state.hz >> 8, (100 * (g_state.hz & 255)) >> 8);
 
 	/* Find the video mode that:
 	 * a) Has same width and height and interlace flag
@@ -218,24 +225,29 @@ static void framerate_switch ()
 
 		unsigned rating = 0;
 		unsigned rate_n = 1;
-		unsigned rate = (mode->framerate << 16) / need.hz;
+		unsigned rate = (mode->framerate << 16) / g_state.hz;
 		while (rate > 0x180) {
 			rate_n++;
-			rate = (mode->framerate << 16) / (need.hz * rate_n);
-			rating += 8;
+			rate = (mode->framerate << 16) / (g_state.hz * rate_n);
 		}
+
+		if (g_mode_prefer_exact) {
+			unsigned n = (rate_n > 4) ? 3 : (rate_n - 1);
+			rating += 8 * (3 - n);
+		} else
+			rating += 8 * (rate_n - 1);
 
 		unsigned delta = abs ((int)(rate - 0x100));
 		if (delta > 3)
 			continue; // freq error > 1.17%
 
-		rating += (2 - delta) * 64;
+		rating += (3 - delta) * 64;
 
 		if (rating > best_rating) {
 			best_rating = rating;
 			best_mode = *mode;
 			// decide if integer or fractional framerate is better
-			display_mode_set_hz (&best_mode, need.hz);
+			display_mode_set_hz (&best_mode, g_state.hz);
 		}
 	}
 
@@ -244,14 +256,11 @@ static void framerate_switch ()
 		return;
 	}
 
-	if (display_mode_equal (&best_mode, &g_current_mode)) {
-		trace (1, "Current display mode is the best match\n");
-		return;
-	}
-
 	// remember current video mode to restore it later
-	if ((need.hz != 0) && (!saved_mode.name))
-		saved_mode = g_current_mode;
+	if (!g_state.orig_mode.name &&
+	    !display_mode_equal (&best_mode, &g_current_mode))
+		g_state.orig_mode = g_current_mode;
+
 	display_mode_switch (&best_mode);
 }
 
@@ -260,22 +269,33 @@ static void framerate_switch ()
  * @param hz screen refresh rate in fixed-point 24.8 format if known,
  *      or 0 to ask movie refresh rate from vdec.
  */
-static void delayed_framerate_switch (bool restore, unsigned hz)
+static void delayed_framerate_switch (bool restore, int hz)
 {
 	mstime_t delay = restore ? g_mode_switch_delay_off : g_mode_switch_delay_on;
 
 	trace (2, "Delaying switch to %u.%02u Hz by %d ms\n",
 		hz >> 8, (100 * (hz & 255)) >> 8, delay);
 
-	if (need.restore != restore) {
-		need.restore = restore;
-		need.hz = hz;
+	if (g_state.restore != restore) {
+		g_state.restore = restore;
+		g_state.hz = hz;
 	}
 	// if we known desired hz, don't overwrite with 0 that may come from vdec uevent
 	if (hz)
-		need.hz = hz;
+		g_state.hz = hz;
 
-	mstime_arm (&ost_switch, delay);
+	mstime_arm (&g_ost_switch, delay);
+}
+
+static void handle_hdmi_switch ()
+{
+	int hs = sysfs_get_int (g_hdmi_state, NULL);
+	if (hs <= 0) {
+		trace (1, "HDMI not active, clearing video mode list\n");
+		display_modes_fini ();
+		memset (&g_state.orig_mode, 0, sizeof (g_state.orig_mode));
+	} else
+		display_modes_init ();
 }
 
 static void handle_uevent (char *msg, ssize_t size)
@@ -288,6 +308,7 @@ static void handle_uevent (char *msg, ssize_t size)
 
 	uevent_filter_reset (&g_filter_frhint);
 	uevent_filter_reset (&g_filter_vdec);
+	uevent_filter_reset (&g_filter_hdmi);
 
 	for (const char *end = msg + size; msg < end; msg += strlen (msg) + 1) {
 		trace (2, "\t> %s\n", msg);
@@ -309,29 +330,35 @@ static void handle_uevent (char *msg, ssize_t size)
 		/* and count matches for every kind of uevent */
 		uevent_filter_match (&g_filter_frhint, msg, val);
 		uevent_filter_match (&g_filter_vdec, msg, val);
+		uevent_filter_match (&g_filter_hdmi, msg, val);
 		msg = val;
 	}
 
-	if (uevent_filter_matched (&g_filter_frhint) &&
-	    (!frame_rate_hint == !frame_rate_end_hint)) {
+	if (uevent_filter_matched (&g_filter_frhint)) {
 		/* got a framerate hint uevent */
 		if (frame_rate_hint) {
 			char *end;
-			unsigned frh = strtoul (frame_rate_hint, &end, 10);
+			int frh = strtoul (frame_rate_hint, &end, 10);
 			if (frh && (!end || !*end)) {
-				unsigned fr_hz = (256*96000 + frh / 2) / frh;
+				int fr_hz = (256*96000 + frh / 2) / frh;
 				delayed_framerate_switch (false, fr_hz);
 			}
 		} else if (frame_rate_end_hint)
 			delayed_framerate_switch (true, 0);
 
-	} else if (uevent_filter_matched (&g_filter_vdec) &&
-		   (action != NULL)) {
+	} else if (uevent_filter_matched (&g_filter_vdec)) {
 		/* got a vdec uevent */
-		if (strcmp (action, "add") == 0)
+		if (action && (strcmp (action, "add") == 0))
 			delayed_framerate_switch (false, 0);
-		else if (strcmp (action, "remove") == 0)
+		else if (action && (strcmp (action, "remove") == 0))
 			delayed_framerate_switch (true, 0);
+
+	} else if (uevent_filter_matched (&g_filter_hdmi)) {
+		/* hdmi plugged on or off */
+		trace (1, "HDMI state changed, will handle in %d ms\n",
+			DEFAULT_HDMI_DELAY);
+		mstime_arm (&g_ost_hdmi, DEFAULT_HDMI_DELAY);
+
 	} else
 		trace (2, "\tUnrecognized uevent\n");
 }
@@ -396,14 +423,19 @@ int afrd_init ()
 	g_mode_switch_delay_off = cfg_get_int ("switch.delay.off", DEFAULT_MODE_SWITCH_DELAY_OFF);
 	g_mode_switch_delay_retry = cfg_get_int ("switch.delay.retry", DEFAULT_MODE_SWITCH_DELAY_RETRY);
 	g_vdec_status = cfg_get_str ("vdec.status", DEFAULT_VDEC_STATUS);
+	g_mode_prefer_exact = cfg_get_int ("mode.prefer.exact", DEFAULT_MODE_PREFER_EXACT);
+	g_mode_use_fract = cfg_get_int ("mode.use.fract", DEFAULT_MODE_USE_FRACT);
 
 	uevent_filter_load (&g_filter_frhint, "uevent.filter.frhint");
 	uevent_filter_load (&g_filter_vdec, "uevent.filter.vdec");
+	uevent_filter_load (&g_filter_hdmi, "uevent.filter.hdmi");
 
 	if (!uevent_open (16 * 1024)) {
 		fprintf (stderr, "%s: failed to open uevent socket", g_program);
 		return EPERM;
 	}
+
+	display_modes_init ();
 
 	return 0;
 }
@@ -419,10 +451,13 @@ void afrd_run ()
 	pfd.events = POLLIN;
 	pfd.fd = g_uevent_sock;
 
-	mstime_disable (&ost_switch);
+	mstime_disable (&g_ost_switch);
 
 	while (!g_shutdown) {
-		int to = mstime_left (&ost_switch);
+		int to = mstime_left (&g_ost_switch);
+		int to2 = mstime_left (&g_ost_hdmi);
+		if ((to < 0) || ((to2 >= 0) && (to2 < to)))
+			to = to2;
 
 		// wait until either a new uevent comes
 		// or the delayed mode switch timer expires
@@ -437,15 +472,21 @@ void afrd_run ()
 				handle_uevents ();
 
 		// if mode switch timer expired, switch the mode finally
-		if (mstime_enabled (&ost_switch) &&
-		    mstime_expired (&ost_switch)) {
-			mstime_disable (&ost_switch);
+		if (mstime_enabled (&g_ost_switch) &&
+		    mstime_expired (&g_ost_switch)) {
+			mstime_disable (&g_ost_switch);
 			framerate_switch ();
+		}
+
+		if (mstime_enabled (&g_ost_hdmi) &&
+		    mstime_expired (&g_ost_hdmi)) {
+			mstime_disable (&g_ost_hdmi);
+			handle_hdmi_switch ();
 		}
 	}
 
 	// restore framerate just in case
-	need.restore = true;
+	g_state.restore = true;
 	framerate_switch ();
 }
 
@@ -459,5 +500,5 @@ void afrd_fini ()
 	uevent_filter_fini (&g_filter_frhint);
 	uevent_filter_fini (&g_filter_vdec);
 
-	display_modes_finit ();
+	display_modes_fini ();
 }

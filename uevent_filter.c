@@ -120,5 +120,5 @@ bool uevent_filter_match (uevent_filter_t *uevf, const char *attr, const char *v
 
 bool uevent_filter_matched (uevent_filter_t *uevf)
 {
-	return (uevf->matches == uevf->size);
+	return uevf->size && (uevf->matches == uevf->size);
 }

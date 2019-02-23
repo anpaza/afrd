@@ -16,11 +16,14 @@
 
 #define DEFAULT_HDMI_DEV		"/sys/class/amhdmitx/amhdmitx0"
 #define DEFAULT_HDMI_STATE		"/sys/class/switch/hdmi/state"
+#define DEFAULT_HDMI_DELAY		300
 #define DEFAULT_VIDEO_MODE		"/sys/class/display/mode"
 #define DEFAULT_VDEC_STATUS		"/sys/class/vdec/vdec_status"
 #define DEFAULT_MODE_SWITCH_DELAY_ON	250
 #define DEFAULT_MODE_SWITCH_DELAY_OFF	5000
 #define DEFAULT_MODE_SWITCH_DELAY_RETRY	500
+#define DEFAULT_MODE_PREFER_EXACT	0
+#define DEFAULT_MODE_USE_FRACT		0
 
 #define ARRAY_SIZE(x)			(sizeof (x) / sizeof (x [0]))
 
@@ -75,13 +78,15 @@ extern void afrd_fini ();
 // read the list of all supported display modes and current display mode
 extern int display_modes_init ();
 // free the list of supported modes
-extern void display_modes_finit ();
+extern void display_modes_fini ();
+// query the current video mode
+extern void display_mode_get_current ();
 // check if two display modes have same attributes
 extern bool display_mode_equal (display_mode_t *mode1, display_mode_t *mode2);
 // return display mode refresh rate in 24.8 fixed-point format
-extern unsigned display_mode_hz (display_mode_t *mode);
+extern int display_mode_hz (display_mode_t *mode);
 // set fractional framerate if that is closer to hz (24.8 fixed-point)
-extern void display_mode_set_hz (display_mode_t *mode, unsigned hz);
+extern void display_mode_set_hz (display_mode_t *mode, int hz);
 // switch video mode
 extern void display_mode_switch (display_mode_t *mode);
 
