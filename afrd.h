@@ -70,6 +70,8 @@ extern int g_mode_switch_delay;
 
 // trace calls if g_verbose != 0
 extern void trace (int level, const char *format, ...);
+// enable logging trace()s to file
+extern void trace_log (const char *logfn);
 
 extern int afrd_init ();
 extern void afrd_run ();

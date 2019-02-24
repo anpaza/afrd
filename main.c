@@ -32,6 +32,7 @@ int g_verbose = 0;
 int g_daemon = 0;
 int g_kill_daemon = 0;
 volatile int g_shutdown = 0;
+static int g_logh = -1;
 
 // the global config
 struct cfg_struct *g_cfg = NULL;
@@ -48,9 +49,21 @@ static void show_help (char *const *argv)
 	printf ("	-D	daemonize the program\n");
 	printf ("	-p FILE	write PID to file when running as daemon\n");
 	printf ("	-k	kill the running daemon\n");
+	printf ("	-l FILE	write the log to FILE (imposes -vvv)\n");
 	printf ("	-h	display this help\n");
 	printf ("	-v	verbose info about what's cooking\n");
 	printf ("	-V	display program version\n");
+}
+
+void trace_log (const char *logfn)
+{
+	g_logh = open (logfn, O_WRONLY | O_APPEND | O_CLOEXEC | O_CREAT | O_SYNC, 0644);
+	if (g_logh < 0) {
+		trace (0, "Failed to open log file %s", logfn);
+		return;
+	}
+
+	g_verbose = 3;
 }
 
 void trace (int level, const char *format, ...)
@@ -67,10 +80,15 @@ void trace (int level, const char *format, ...)
 
 	localtime_r (&tv.tv_sec, &tm);
 
-	printf ("%02d:%02d:%02d.%03d ", tm.tm_hour, tm.tm_min, tm.tm_sec, (int)(tv.tv_usec / 1000));
+	char buff [1024];
+	int n = snprintf (buff, sizeof (buff), "%02d:%02d:%02d.%03d ",
+	                  tm.tm_hour, tm.tm_min, tm.tm_sec, (int)(tv.tv_usec / 1000));
+
 	va_start (argp, format);
-	vprintf (format, argp);
+	n += vsnprintf (buff + n, sizeof (buff) - n, format, argp);
 	va_end (argp);
+
+	write ((g_logh < 0) ? STDOUT_FILENO : g_logh, buff, n);
 }
 
 static void signal_handler (int sig)
@@ -89,8 +107,7 @@ static int load_config (const char *config)
 	if ((ret = cfg_load (g_cfg, config)) < 0) {
 		cfg_free (g_cfg);
 		g_cfg = NULL;
-		fprintf (stderr, "%s: failed to load config file '%s'\n",
-			g_program, config);
+		trace (0, "failed to load config file '%s'\n", config);
 		return ret;
 	}
 
@@ -174,7 +191,7 @@ int main (int argc, char *const *argv)
 
 	g_program = argv [0];
 
-	while ((ret = getopt (argc, argv, "Dp:khvV")) >= 0)
+	while ((ret = getopt (argc, argv, "Dp:kl:hvV")) >= 0)
 		switch (ret) {
 			case 'D':
 				g_daemon = 1;
@@ -186,6 +203,10 @@ int main (int argc, char *const *argv)
 
 			case 'k':
 				g_kill_daemon = 1;
+				break;
+
+			case 'l':
+				trace_log (optarg);
 				break;
 
 			case 'v':

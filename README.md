@@ -173,4 +173,5 @@ recognized by AFRD:
     match the string "platform", while "platform" or "plat.*" will.
 
     Regular expressions cannot contain space characters, which are used to
-    delimit attribute filters from each other.
+    delimit attribute filters from each other. If you need a space, use the
+    [[:space:]] regular expression.

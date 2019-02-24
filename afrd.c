@@ -468,6 +468,10 @@ static void blacklist_rates_load (const char *kw)
 
 int afrd_init ()
 {
+	const char *log = cfg_get_str ("log", NULL);
+	if (log)
+		trace_log (log);
+
 	trace (1, "afrd is initializing\n");
 
 	g_hdmi_dev = cfg_get_str ("hdmi.dev", DEFAULT_HDMI_DEV);
