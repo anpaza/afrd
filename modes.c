@@ -34,7 +34,7 @@ static bool mode_parse (char *desc, display_mode_t *mode)
 	mode->name = desc;
 
 	if (strncmp (desc, "smpte", 5) == 0) {
-		mode->width = 3840;
+		mode->width = 4096;
 		mode->height = 2160;
 		desc += 5;
 	} else {
@@ -130,7 +130,7 @@ int display_modes_init ()
 void display_mode_get_current ()
 {
 	// parse the current video mode
-	char *mode = sysfs_get_str (g_video_mode, NULL);
+	char *mode = sysfs_get_str (g_mode_path, NULL);
 	if (!mode_parse (mode, &g_current_mode)) {
 		trace (1, "Failed to recognize current video mode '%s'\n", mode);
 		free (mode);
@@ -165,11 +165,14 @@ void display_modes_fini ()
 
 bool display_mode_equal (display_mode_t *mode1, display_mode_t *mode2)
 {
-	return (mode1->width == mode2->width) &&
-	       (mode1->height == mode2->height) &&
-	       (mode1->framerate == mode2->framerate) &&
-	       (mode1->interlaced == mode2->interlaced) &&
-	       (mode1->fractional == mode2->fractional);
+	if ((mode1->width != mode2->width) ||
+	    (mode1->height != mode2->height) ||
+	    (mode1->interlaced != mode2->interlaced))
+		return false;
+
+	int hz1 = display_mode_hz (mode1);
+	int hz2 = display_mode_hz (mode2);
+	return (hz1 == hz2);
 }
 
 int display_mode_hz (display_mode_t *mode)
@@ -234,10 +237,10 @@ void display_mode_switch (display_mode_t *mode)
 		// fractional mode transition via special null mode
 		char frac [8];
 		snprintf (frac, sizeof (frac), "%d", mode->fractional ? 1 : 0);
-		sysfs_write (g_video_mode, "null");
+		sysfs_write (g_mode_path, "null");
 		sysfs_set_str (g_hdmi_dev, "frac_rate_policy", frac);
 	}
 
-	sysfs_write (g_video_mode, mode->name);
+	sysfs_write (g_mode_path, mode->name);
 	g_current_mode = *mode;
 }

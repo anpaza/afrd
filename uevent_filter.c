@@ -55,18 +55,14 @@ bool uevent_filter_init (uevent_filter_t *uevf, const char *name, const char *fi
 	uevf->filter = strdup (filter);
 	char *cur = uevf->filter;
 	while (*cur) {
-		char *comma = strchr (cur, ',');
-		bool last = !comma;
-		if (last)
-			comma = strchr (cur, 0);
+		cur += strspn (cur, spaces);
+		char *next = cur + strcspn (cur, spaces);
+		if (*next)
+			*next++ = 0;
 
-		strip_trailing_spaces (comma, cur);
 		append_rex (uevf, cur);
 
-		if (last)
-			break;
-
-		cur = comma + 1;
+		cur = next;
 	}
 
 	return (uevf->size > 0);

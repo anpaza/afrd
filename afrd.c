@@ -12,7 +12,6 @@
 #include <poll.h>
 #include <linux/netlink.h>
 #include <sys/socket.h>
-#include <math.h>
 
 #ifndef SOCK_CLOEXEC
 #  define SOCK_CLOEXEC O_CLOEXEC
@@ -24,7 +23,7 @@
 const char *g_hdmi_dev = NULL;
 const char *g_hdmi_state = NULL;
 static int g_uevent_sock = -1;
-const char *g_video_mode = NULL;
+const char *g_mode_path = NULL;
 static const char *g_vdec_status = NULL;
 int g_mode_switch_delay_on;
 int g_mode_switch_delay_off;
@@ -443,28 +442,23 @@ static void blacklist_rates_load (const char *kw)
 	trace (1, "\tloading blacklisted rates\n");
 
 	char *tmp = strdup (str);
-	char *cur = tmp + strspn (tmp, spaces);
-	while (cur && *cur) {
-		char *comma = strchr (cur, ',');
-		if (comma) {
-			strip_trailing_spaces (comma, cur);
-			comma++;
-			comma += strspn (comma, spaces);
-		} else {
-			strip_trailing_spaces (strchr (cur, 0), cur);
-			comma = NULL;
-		}
+	char *cur = tmp;
+	while (*cur) {
+		cur += strspn (cur, spaces);
+		char *next = cur + strcspn (cur, spaces);
+		if (*next)
+			*next++ = 0;
 
 		float rate;
-		if ((sscanf (cur, "%f", &rate) == 1) &&
+		if ((sscanf (cur, "%f", &rate) == 1) && (rate >= 1) && (rate <= 1000) &&
 		    (g_mode_blacklist_rates_size < ARRAY_SIZE (g_mode_blacklist_rates))) {
-			int irate = (int)round (rate * 256.0);
+			int irate = (int)(256.0 * rate + 0.5);
 			g_mode_blacklist_rates [g_mode_blacklist_rates_size] = irate;
 			g_mode_blacklist_rates_size++;
 			trace (2, "\t+ %u.%02uHz\n", irate >> 8, (100 * (irate & 255)) >> 8);
 		}
 
-		cur = comma;
+		cur = next;
 	}
 
 	free (tmp);
@@ -478,16 +472,17 @@ int afrd_init ()
 
 	g_hdmi_dev = cfg_get_str ("hdmi.dev", DEFAULT_HDMI_DEV);
 	g_hdmi_state = cfg_get_str ("hdmi.state", DEFAULT_HDMI_STATE);
-	g_video_mode = cfg_get_str ("video.mode", DEFAULT_VIDEO_MODE);
+
+	g_mode_path = cfg_get_str ("mode.path", DEFAULT_VIDEO_MODE);
+	g_mode_prefer_exact = cfg_get_int ("mode.prefer.exact", DEFAULT_MODE_PREFER_EXACT);
+	g_mode_use_fract = cfg_get_int ("mode.use.fract", DEFAULT_MODE_USE_FRACT);
+	blacklist_rates_load ("mode.blacklist.rates");
+
 	g_mode_switch_delay_on = cfg_get_int ("switch.delay.on", DEFAULT_MODE_SWITCH_DELAY_ON);
 	g_mode_switch_delay_off = cfg_get_int ("switch.delay.off", DEFAULT_MODE_SWITCH_DELAY_OFF);
 	g_mode_switch_delay_retry = cfg_get_int ("switch.delay.retry", DEFAULT_MODE_SWITCH_DELAY_RETRY);
+
 	g_vdec_status = cfg_get_str ("vdec.status", DEFAULT_VDEC_STATUS);
-	g_mode_prefer_exact = cfg_get_int ("mode.prefer.exact", DEFAULT_MODE_PREFER_EXACT);
-	g_mode_use_fract = cfg_get_int ("mode.use.fract", DEFAULT_MODE_USE_FRACT);
-
-	blacklist_rates_load ("mode.blacklist.rates");
-
 	uevent_filter_load (&g_filter_frhint, "uevent.filter.frhint");
 	uevent_filter_load (&g_filter_vdec, "uevent.filter.vdec");
 	uevent_filter_load (&g_filter_hdmi, "uevent.filter.hdmi");

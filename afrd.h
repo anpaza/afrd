@@ -55,7 +55,7 @@ extern volatile int g_shutdown;
 // sysfs path to hdmi interface
 extern const char *g_hdmi_dev;
 // sysfs path to current display mode
-extern const char *g_video_mode;
+extern const char *g_mode_path;
 
 // the list of supported video modes
 extern display_mode_t *g_modes;
