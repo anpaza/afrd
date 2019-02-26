@@ -4,6 +4,7 @@
  */
 
 #include "afrd.h"
+#include "colorspace.h"
 
 display_mode_t *g_modes = NULL;
 int g_modes_n = 0;
@@ -57,6 +58,9 @@ static bool mode_parse (char *desc, display_mode_t *mode)
 	}
 
 	char c = *desc++;
+	// according to kernel sources, 'fp' means same as 'p'
+	if (c == 'f')
+		c = *desc++;
 	if (c == 'i')
 		mode->interlaced = true;
 	else if (c == 'p')
@@ -67,6 +71,10 @@ static bool mode_parse (char *desc, display_mode_t *mode)
 	}
 
 	mode->framerate = parse_int (&desc);
+
+	// here follows 'hz' optionally followed by color space like '420'.
+	// we ignore them.
+
 	return true;
 }
 
@@ -100,8 +108,8 @@ int display_modes_init ()
 
 	// parse the list of video modes supported by display
 	while (modes && *modes) {
-		modes += strspn (modes, " \t\r\n");
-		int mode_len = strcspn (modes, "\r\n");
+		modes += strspn (modes, spaces);
+		int mode_len = strcspn (modes, spaces);
 		if (!mode_len)
 			break;
 
@@ -177,25 +185,23 @@ bool display_mode_equal (display_mode_t *mode1, display_mode_t *mode2)
 
 int display_mode_hz (display_mode_t *mode)
 {
-	int hz = mode->framerate << 8;
-
 	if (mode->fractional)
-		switch (hz) {
-			case ( 24 << 8): hz = ( 2997 * 256 + 62) / 125; break;
-			case ( 30 << 8): hz = ( 2997 * 256 + 50) / 100; break;
-			case ( 60 << 8): hz = ( 5994 * 256 + 50) / 100; break;
-			case (120 << 8): hz = (11988 * 256 + 50) / 100; break;
-			case (240 << 8): hz = (23976 * 256 + 50) / 100; break;
+		switch (mode->framerate) {
+			case  24: return ( 2997 * 256 + 62) / 125;
+			case  30: return ( 2997 * 256 + 50) / 100;
+			case  60: return ( 5994 * 256 + 50) / 100;
+			case 120: return (11988 * 256 + 50) / 100;
+			case 240: return (23976 * 256 + 50) / 100;
 		}
 
-	return hz;
+	return mode->framerate * 256;
 }
 
 void display_mode_set_hz (display_mode_t *mode, int hz)
 {
 	mode->fractional = true;
 	int hz_frac = display_mode_hz (mode);
-	int hz_int = mode->framerate << 8;
+	int hz_int = mode->framerate * 256;
 
 	if (hz_frac == hz_int) {
 		// this mode has no fractional variant
@@ -216,9 +222,8 @@ void display_mode_set_hz (display_mode_t *mode, int hz)
 		best_hz = multiple_hz;
 		best_diff = multiple_diff;
 	}
-	hz = best_hz;
 
-	if (abs (hz_int - hz) < abs (hz_frac - hz))
+	if (abs (hz_int - best_hz) < abs (hz_frac - best_hz))
 		mode->fractional = false;
 }
 
@@ -240,6 +245,8 @@ void display_mode_switch (display_mode_t *mode)
 		sysfs_write (g_mode_path, "null");
 		sysfs_set_str (g_hdmi_dev, "frac_rate_policy", frac);
 	}
+
+	colorspace_apply (mode->name);
 
 	sysfs_write (g_mode_path, mode->name);
 	g_current_mode = *mode;

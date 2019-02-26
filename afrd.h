@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <errno.h>
 
 #include "mstime.h"
@@ -43,6 +44,9 @@ typedef struct
 	(mode).name, (mode).width, (mode).height, \
 	(hz) >> 8, (100 * ((hz) & 255)) >> 8, \
 	(mode).interlaced ? ", interlaced" : ""
+
+// " \t\r\n"
+extern const char *spaces;
 
 // program name
 extern const char *g_program;

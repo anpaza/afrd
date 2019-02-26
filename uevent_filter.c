@@ -1,8 +1,6 @@
 #include "afrd.h"
 #include "uevent_filter.h"
 
-const char *spaces = " \t\r\n";
-
 void strip_trailing_spaces (char *eol, const char *start)
 {
 	while (eol > start) {
@@ -18,8 +16,10 @@ void strip_trailing_spaces (char *eol, const char *start)
 
 static bool append_rex (uevent_filter_t *uevf, char *str)
 {
-	if (uevf->size >= ARRAY_SIZE (uevf->attr))
+	if (uevf->size >= ARRAY_SIZE (uevf->attr)) {
+		trace (1, "\tmaximum number of filters reached");
 		return false;
+	}
 
 	str += strspn (str, spaces);
 	if (!*str)

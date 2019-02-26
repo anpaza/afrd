@@ -5,6 +5,7 @@
 
 #include "afrd.h"
 #include "uevent_filter.h"
+#include "colorspace.h"
 
 #define __USE_GNU
 #include <unistd.h>
@@ -19,6 +20,8 @@
 
 #define CMSG_FOREACH(cmsg, mh)                                          \
 	for ((cmsg) = CMSG_FIRSTHDR(mh); (cmsg); (cmsg) = CMSG_NXTHDR((mh), (cmsg)))
+
+const char *spaces = " \t\r\n";
 
 const char *g_hdmi_dev = NULL;
 const char *g_hdmi_state = NULL;
@@ -126,7 +129,7 @@ static void query_vdec ()
 		char *cur = line;
 		const char *attr, *val;
 
-		cur += strspn (cur, " \t\r\n");
+		cur += strspn (cur, spaces);
 		attr = cur;
 		while (*cur && (*cur != ':'))
 			cur++;
@@ -135,7 +138,7 @@ static void query_vdec ()
 		*cur = 0;
 		strip_trailing_spaces (cur, attr);
 		cur++;
-		cur += strspn (cur, " \t\r\n");
+		cur += strspn (cur, spaces);
 
 		val = cur;
 		cur = strchr (cur, 0);
@@ -146,7 +149,7 @@ static void query_vdec ()
 		if (strcmp (attr, "frame rate") == 0) {
 			char *endp;
 			fps = strtol (val, &endp, 10);
-			endp += strspn (endp, " \t\r\n");
+			endp += strspn (endp, spaces);
 			if ((*endp != 0) && (strcmp (endp, "fps") != 0)) {
 				trace (2, "\tgarbage at end of 'frame rate': [%s]\n", endp);
 				fps = 0;
@@ -257,7 +260,7 @@ static void framerate_switch ()
 		if (rating > best_rating) {
 			display_mode_t tmp = *mode;
 			// decide if integer or fractional framerate is better
-			display_mode_set_hz (&best_mode, g_state.hz);
+			display_mode_set_hz (&tmp, g_state.hz);
 
 			// if framerate is blacklisted, try to invert fractional
 			if (rate_is_blacklisted (display_mode_hz (&tmp))) {
@@ -315,8 +318,10 @@ static void handle_hdmi_switch ()
 		trace (1, "HDMI not active, clearing video mode list\n");
 		display_modes_fini ();
 		memset (&g_state.orig_mode, 0, sizeof (g_state.orig_mode));
-	} else
+	} else {
 		display_modes_init ();
+		colorspace_refresh ();
+	}
 }
 
 static void handle_uevent (char *msg, ssize_t size)
@@ -497,6 +502,7 @@ int afrd_init ()
 	}
 
 	display_modes_init ();
+	colorspace_init ();
 
 	return 0;
 }
@@ -562,4 +568,5 @@ void afrd_fini ()
 	uevent_filter_fini (&g_filter_vdec);
 
 	display_modes_fini ();
+	colorspace_fini ();
 }

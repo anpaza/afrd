@@ -16,14 +16,7 @@
  */
 
 #include <stdint.h>
-
-#ifndef __cplusplus
-typedef enum
-{
-	false = 0,
-	true = !0,
-} bool;
-#endif
+#include <stdbool.h>
 
 /// Keep same behaviour on 32- and 64-bit machines
 typedef uint32_t mstime_t;
