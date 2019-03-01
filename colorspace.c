@@ -83,6 +83,8 @@ struct cs_filter_t
 static struct cs_filter_t g_cs_filter [32];
 /* Number of filters in the array */
 static int g_cs_filter_size = 0;
+/* Default color space */
+static char *g_cs_default = 0;
 
 static bool parse_str (const char *str, int *val, struct parse_list *list)
 {
@@ -96,11 +98,13 @@ static bool parse_str (const char *str, int *val, struct parse_list *list)
 	return false;
 }
 
-static bool colorspace_parse (char *filt, struct colorspace_t *cs)
+static bool colorspace_parse (char *filt, struct colorspace_t *cs, bool reserved)
 {
-	cs->cs = COLORSPACE_RESERVED;
-	cs->cd = COLORDEPTH_RESERVED;
-	cs->cr = COLORRANGE_RESERVED;
+	if (reserved) {
+		cs->cs = COLORSPACE_RESERVED;
+		cs->cd = COLORDEPTH_RESERVED;
+		cs->cr = COLORRANGE_RESERVED;
+	}
 
 	char *cur_r;
 	char *cur = strtok_r (filt, ",", &cur_r);
@@ -171,7 +175,7 @@ static bool colorspace_parse_filter (const char *csel)
 
 		// cur is regexp for video mode
 		// val is one of rgb, 444 or 420
-		if (!colorspace_parse (val, &csf->cs)) {
+		if (!colorspace_parse (val, &csf->cs, true)) {
 			trace (1, "\tignoring invalid color space: %s\n", val);
 			continue;
 		}
@@ -211,7 +215,7 @@ bool colorspace_refresh ()
 		}
 		struct colorspace_t *cs = &g_cs_supported [g_cs_supported_size];
 
-		if (!colorspace_parse (cur, cs)) {
+		if (!colorspace_parse (cur, cs, true)) {
 			trace (1, "\tignoring invalid color space: %s\n", cur);
 			continue;
 		}
@@ -221,6 +225,10 @@ bool colorspace_refresh ()
 	} while ((cur = strtok_r (NULL, spaces, &cur_r)) != NULL);
 
 	free (list);
+
+	if (g_cs_default)
+		free (g_cs_default);
+	g_cs_default = sysfs_read (g_cs_path);
 
 	return true;
 }
@@ -253,11 +261,17 @@ static bool colorspace_supported (struct colorspace_t *cs)
 
 bool colorspace_apply (const char *mode)
 {
-	char *cur_cs_str = sysfs_read (g_cs_path);
+	const char *cs_attr;
+
 	/* default colorspace parameters */
-	struct colorspace_t cur_cs = {COLORSPACE_YUV444, COLORDEPTH_24B, COLORRANGE_FUL};
-	/* read current colorspace attributes */
-	colorspace_parse (cur_cs_str, &cur_cs);
+	struct colorspace_t def_cs = {COLORSPACE_YUV444, COLORDEPTH_24B, COLORRANGE_FUL};
+	colorspace_parse (g_cs_default, &def_cs, false);
+
+	/* current colorspace setting */
+	struct colorspace_t cur_cs = def_cs;
+	char *cur_cs_str = sysfs_read (g_cs_path);
+	colorspace_parse (cur_cs_str, &cur_cs, false);
+	free (cur_cs_str);
 
 	for (int i = 0; i < g_cs_filter_size; i++) {
 		struct cs_filter_t *csf = &g_cs_filter [i];
@@ -281,13 +295,16 @@ bool colorspace_apply (const char *mode)
 			cur_cs.cd = csf->cs.cd;
 		if (csf->cs.cr != COLORRANGE_RESERVED)
 			cur_cs.cr = csf->cs.cr;
-
-		const char *cs_attr = colorspace_str (&cur_cs);
-		trace (1, "Setting color space to %s\n", cs_attr);
-		return sysfs_write (g_cs_path, cs_attr) == 0;
+		goto apply;
 	}
 
-	return false;
+	/* use default colorspace if no match found */
+	cur_cs = def_cs;
+
+apply:
+	cs_attr = colorspace_str (&cur_cs);
+	trace (1, "Setting color space to %s\n", cs_attr);
+	return sysfs_write (g_cs_path, cs_attr) == 0;
 }
 
 void colorspace_init ()
@@ -320,4 +337,7 @@ void colorspace_fini ()
 	}
 
 	g_cs_filter_size = 0;
+
+	if (g_cs_default)
+		free (g_cs_default);
 }

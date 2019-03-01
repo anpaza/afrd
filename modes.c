@@ -238,13 +238,14 @@ void display_mode_switch (display_mode_t *mode)
 	trace (1, "Switching display mode to "DISPMODE_FMT"\n",
 		DISPMODE_ARGS (*mode, display_mode_hz (mode)));
 
-	if (mode->fractional != g_current_mode.fractional) {
-		// fractional mode transition via special null mode
-		char frac [8];
-		snprintf (frac, sizeof (frac), "%d", mode->fractional ? 1 : 0);
+	// fractional mode transition via special null mode
+	if ((!mode->name || !g_current_mode.name) ||
+	    ((strcmp (mode->name, g_current_mode.name) == 0) &&
+	     (mode->fractional != g_current_mode.fractional)))
 		sysfs_write (g_mode_path, "null");
-		sysfs_set_str (g_hdmi_dev, "frac_rate_policy", frac);
-	}
+
+	char frac [2] = { mode->fractional ? '1' : '0', 0 };
+	sysfs_set_str (g_hdmi_dev, "frac_rate_policy", frac);
 
 	colorspace_apply (mode->name);
 

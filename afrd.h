@@ -50,6 +50,8 @@ extern const char *spaces;
 
 // program name
 extern const char *g_program;
+// the file name of the active config
+extern const char *g_config;
 // the global config
 extern struct cfg_struct *g_cfg;
 // trace calls if non-zero
@@ -78,7 +80,7 @@ extern void trace (int level, const char *format, ...);
 extern void trace_log (const char *logfn);
 
 extern int afrd_init ();
-extern void afrd_run ();
+extern int afrd_run ();
 extern void afrd_fini ();
 
 // read the list of all supported display modes and current display mode
@@ -96,6 +98,8 @@ extern void display_mode_set_hz (display_mode_t *mode, int hz);
 // switch video mode
 extern void display_mode_switch (display_mode_t *mode);
 
+// load config from file
+extern int load_config (const char *config);
 // superstructure on cfg_parse
 extern const char *cfg_get_str (const char *key, const char *defval);
 extern int cfg_get_int (const char *key, int defval);

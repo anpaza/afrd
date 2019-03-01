@@ -17,7 +17,7 @@
 
 #include "afrd.h"
 
-const char *g_version = "0.2.0";
+const char *g_version = "0.2.1";
 const char *g_config = "/etc/afrd.ini";
 const char *g_pidfile =
 #ifdef ANDROID
@@ -96,7 +96,7 @@ static void signal_handler (int sig)
 	g_shutdown = 1;
 }
 
-static int load_config (const char *config)
+int load_config (const char *config)
 {
 	int ret;
 
@@ -112,6 +112,7 @@ static int load_config (const char *config)
 	}
 
 	trace (1, "\tsuccess\n");
+	g_config = config;
 
 	return 0;
 }
@@ -233,27 +234,20 @@ int main (int argc, char *const *argv)
 		if ((ret = load_config (argv [optind++])) == 0)
 			break;
 
-        // as a last resort, try to load default config
-	if (!g_cfg && (ret = load_config (g_config)) != 0) {
-		fprintf (stderr, "%s: failed to load any config files\n",
-			g_program);
-		goto leave;
-	}
-
-	if ((ret = afrd_init ()) < 0)
-		goto leave;
-
 	signal (SIGINT,  signal_handler);
 	signal (SIGQUIT, signal_handler);
 	signal (SIGTERM, signal_handler);
 
-	afrd_run ();
+	for (;;) {
+		if ((ret = afrd_init ()) < 0)
+			break;
+		ret = afrd_run ();
+		afrd_fini ();
 
-	afrd_fini ();
+		if (ret <= 0)
+			break;
+	}
 
-	ret = 0;
-
-leave:
 	if (g_cfg)
 		cfg_free (g_cfg);
 

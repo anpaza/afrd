@@ -6,6 +6,7 @@
 #include "afrd.h"
 #include "uevent_filter.h"
 #include "colorspace.h"
+#include "settings.h"
 
 #define __USE_GNU
 #include <unistd.h>
@@ -13,6 +14,7 @@
 #include <poll.h>
 #include <linux/netlink.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 
 #ifndef SOCK_CLOEXEC
 #  define SOCK_CLOEXEC O_CLOEXEC
@@ -237,7 +239,6 @@ static void framerate_switch ()
 		    (mode->interlaced != g_current_mode.interlaced))
 			continue;
 
-		int rating = 0;
 		unsigned rate_n = 1;
 		unsigned rate = (mode->framerate << 16) / g_state.hz;
 		while (rate > 0x180) {
@@ -245,17 +246,15 @@ static void framerate_switch ()
 			rate = (mode->framerate << 16) / (g_state.hz * rate_n);
 		}
 
-		if (g_mode_prefer_exact) {
-			unsigned n = (rate_n > 4) ? 3 : (rate_n - 1);
-			rating += 8 * (3 - n);
-		} else
-			rating += 8 * (rate_n - 1);
-
 		unsigned delta = abs ((int)(rate - 0x100));
 		if (delta > 11)
 			continue; // freq error > 4.3%
 
-		rating += (21 - delta) * 64;
+		// rating is larger as delta is closer to 1.0 rate
+		int rating = (11 - delta) * 16;
+
+		unsigned n = (rate_n > 3) ? 3 : (rate_n - 1);
+		rating += 4 * (g_mode_prefer_exact ? (3 - n) : n);
 
 		if (rating > best_rating) {
 			display_mode_t tmp = *mode;
@@ -471,60 +470,49 @@ static void blacklist_rates_load (const char *kw)
 
 /* --------- * --------- * --------- * --------- * --------- * --------- */
 
-int afrd_init ()
+/* check config file once in 5 seconds */
+#define CONFIG_CHECK_PERIOD	5000
+
+static int min_time (int t1, int t2)
 {
-	const char *log = cfg_get_str ("log", NULL);
-	if (log)
-		trace_log (log);
+	if ((t1 < 0) || ((t2 >= 0) && (t2 < t1)))
+		return t2;
+	return t1;
+}
 
-	trace (1, "afrd is initializing\n");
-
-	g_hdmi_dev = cfg_get_str ("hdmi.dev", DEFAULT_HDMI_DEV);
-	g_hdmi_state = cfg_get_str ("hdmi.state", DEFAULT_HDMI_STATE);
-
-	g_mode_path = cfg_get_str ("mode.path", DEFAULT_VIDEO_MODE);
-	g_mode_prefer_exact = cfg_get_int ("mode.prefer.exact", DEFAULT_MODE_PREFER_EXACT);
-	g_mode_use_fract = cfg_get_int ("mode.use.fract", DEFAULT_MODE_USE_FRACT);
-	blacklist_rates_load ("mode.blacklist.rates");
-
-	g_mode_switch_delay_on = cfg_get_int ("switch.delay.on", DEFAULT_MODE_SWITCH_DELAY_ON);
-	g_mode_switch_delay_off = cfg_get_int ("switch.delay.off", DEFAULT_MODE_SWITCH_DELAY_OFF);
-	g_mode_switch_delay_retry = cfg_get_int ("switch.delay.retry", DEFAULT_MODE_SWITCH_DELAY_RETRY);
-
-	g_vdec_status = cfg_get_str ("vdec.status", DEFAULT_VDEC_STATUS);
-	uevent_filter_load (&g_filter_frhint, "uevent.filter.frhint");
-	uevent_filter_load (&g_filter_vdec, "uevent.filter.vdec");
-	uevent_filter_load (&g_filter_hdmi, "uevent.filter.hdmi");
-
-	if (!uevent_open (16 * 1024)) {
-		fprintf (stderr, "%s: failed to open uevent socket", g_program);
-		return EPERM;
-	}
-
-	display_modes_init ();
-	colorspace_init ();
-
+static time_t mtime (const char *fn)
+{
+	struct stat st;
+	if (stat (fn, &st) == 0)
+		return st.st_mtime;
 	return 0;
 }
 
-void afrd_run ()
+int afrd_run ()
 {
 	if (g_uevent_sock == -1)
-		return;
+		return -1;
+
+	int ret = 0;
 
 	trace (1, "afrd running\n");
+	mstime_update ();
 
 	struct pollfd pfd;
 	pfd.events = POLLIN;
 	pfd.fd = g_uevent_sock;
 
 	mstime_disable (&g_ost_switch);
+	mstime_disable (&g_ost_hdmi);
+
+	mstime_t ost_config;
+	mstime_arm (&ost_config, CONFIG_CHECK_PERIOD);
+	time_t config_mtime = mtime (g_config);
 
 	while (!g_shutdown) {
-		int to = mstime_left (&g_ost_switch);
-		int to2 = mstime_left (&g_ost_hdmi);
-		if ((to < 0) || ((to2 >= 0) && (to2 < to)))
-			to = to2;
+		int to = min_time (min_time (mstime_left (&g_ost_switch),
+					     mstime_left (&g_ost_hdmi)),
+				   mstime_left (&ost_config));
 
 		// wait until either a new uevent comes
 		// or the delayed mode switch timer expires
@@ -550,11 +538,73 @@ void afrd_run ()
 			mstime_disable (&g_ost_hdmi);
 			handle_hdmi_switch ();
 		}
+
+		if (mstime_expired (&ost_config)) {
+			mstime_arm (&ost_config, CONFIG_CHECK_PERIOD);
+
+			time_t cmt = mtime (g_config);
+			if ((cmt != 0) && (cmt != config_mtime)) {
+				trace (1, "config file %s changed, reloading\n", g_config);
+				ret = 1;
+				break;
+			}
+		}
 	}
 
 	// restore framerate just in case
 	g_state.restore = true;
 	framerate_switch ();
+	return ret;
+}
+
+int afrd_init ()
+{
+	settings_init ();
+
+        /* load config if not loaded already */
+	if (!g_cfg && (load_config (g_config) != 0)) {
+		fprintf (stderr, "%s: failed to load config file\n", g_program);
+		return -1;
+	}
+
+	const char *log = cfg_get_str ("log", NULL);
+	if (log)
+		trace_log (log);
+
+	trace (1, "afrd is initializing\n");
+
+	g_hdmi_dev = cfg_get_str ("hdmi.dev", DEFAULT_HDMI_DEV);
+	g_hdmi_state = cfg_get_str ("hdmi.state", DEFAULT_HDMI_STATE);
+
+	g_mode_path = cfg_get_str ("mode.path", DEFAULT_VIDEO_MODE);
+	g_mode_prefer_exact = cfg_get_int ("mode.prefer.exact", DEFAULT_MODE_PREFER_EXACT);
+	g_mode_use_fract = cfg_get_int ("mode.use.fract", DEFAULT_MODE_USE_FRACT);
+	blacklist_rates_load ("mode.blacklist.rates");
+
+	trace (1, "Refresh rate selection: use fractional %d, exact %d\n",
+		g_mode_use_fract, g_mode_prefer_exact);
+
+	g_mode_switch_delay_on = cfg_get_int ("switch.delay.on", DEFAULT_MODE_SWITCH_DELAY_ON);
+	g_mode_switch_delay_off = cfg_get_int ("switch.delay.off", DEFAULT_MODE_SWITCH_DELAY_OFF);
+	g_mode_switch_delay_retry = cfg_get_int ("switch.delay.retry", DEFAULT_MODE_SWITCH_DELAY_RETRY);
+
+	trace (1, "Switch delays: on %d, off %d, retry %d ms\n",
+		g_mode_switch_delay_on, g_mode_switch_delay_off, g_mode_switch_delay_retry);
+
+	g_vdec_status = cfg_get_str ("vdec.status", DEFAULT_VDEC_STATUS);
+	uevent_filter_load (&g_filter_frhint, "uevent.filter.frhint");
+	uevent_filter_load (&g_filter_vdec, "uevent.filter.vdec");
+	uevent_filter_load (&g_filter_hdmi, "uevent.filter.hdmi");
+
+	if (!uevent_open (16 * 1024)) {
+		fprintf (stderr, "%s: failed to open uevent socket", g_program);
+		return EPERM;
+	}
+
+	display_modes_init ();
+	colorspace_init ();
+
+	return 0;
 }
 
 void afrd_fini ()
@@ -569,4 +619,11 @@ void afrd_fini ()
 
 	display_modes_fini ();
 	colorspace_fini ();
+
+	if (g_cfg) {
+		cfg_free (g_cfg);
+		g_cfg = NULL;
+	}
+
+	settings_fini ();
 }

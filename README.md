@@ -91,8 +91,12 @@ Configuration file
 
 AFRD uses a simple configuration file that can be used to customize
 its behavior. The file contains either comment lines, starting with
-the '#' character, or key=value pairs. The following keywords are
-recognized by AFRD:
+the '#' character, or key=value pairs.
+
+Every 5 seconds afrd will check the last-modified timestamp on the
+loaded config file. If config file is changed, afrd reloads it.
+
+The following parameters are recognized by AFRD:
 
 * *hdmi.dev*
     This keyword defines the sysfs directory with HDMI driver attributes.
@@ -175,3 +179,26 @@ recognized by AFRD:
     Regular expressions cannot contain space characters, which are used to
     delimit attribute filters from each other. If you need a space, use the
     [[:space:]] regular expression.
+
+
+Android Settings support
+------------------------
+
+Since version 0.2.1 afrd has support for Android settings. When configuration
+file is read, before reading every key from config file, a query is done to
+[Settings.System](https://developer.android.com/reference/android/provider/Settings.System). If the respective setting is found, it overrides the config
+file setting.
+
+The name of the settings key has the afrd_ prefix prepended, and all dots in
+key name are replaced by underscore. Thus, to override, say, mode.blacklist.rates
+you have to write the setting "afrd_mode_blacklist_rates".
+
+You can check and modify Android settings from the command line with the
+'settings' tool as follows:
+
+    $ settings get system afrd_mode_blacklist_rates
+    null
+    $ settings put system afrd_mode_blacklist_rates "23.976 29.97"
+    $ settings get system afrd_mode_blacklist_rates
+    23.976 29.97
+    $ settings delete system afrd_mode_blacklist_rates
