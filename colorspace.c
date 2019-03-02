@@ -106,6 +106,9 @@ static bool colorspace_parse (char *filt, struct colorspace_t *cs, bool reserved
 		cs->cr = COLORRANGE_RESERVED;
 	}
 
+	if (!filt)
+		return false;
+
 	char *cur_r;
 	char *cur = strtok_r (filt, ",", &cur_r);
 	do {
@@ -197,6 +200,8 @@ static bool colorspace_parse_filter (const char *csel)
 bool colorspace_refresh ()
 {
 	g_cs_supported_size = 0;
+	if (!g_cs_list_path || !g_cs_path)
+		return false;
 
 	char *list = sysfs_read (g_cs_list_path);
 	if (!list)
@@ -261,6 +266,9 @@ static bool colorspace_supported (struct colorspace_t *cs)
 
 bool colorspace_apply (const char *mode)
 {
+	if (!g_cs_list_path || !g_cs_path)
+		return false;
+
 	const char *cs_attr;
 
 	/* default colorspace parameters */
@@ -340,4 +348,6 @@ void colorspace_fini ()
 
 	if (g_cs_default)
 		free (g_cs_default);
+
+	g_cs_list_path = g_cs_path = NULL;
 }

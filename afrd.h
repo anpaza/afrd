@@ -116,4 +116,26 @@ extern int sysfs_set_int (const char *device, const char *attr, int value);
 
 extern int sysfs_exists (const char *device_attr);
 
+// Return strlen(starts) if str starts with it, 0 otherwise
+extern int strskip (const char *str, const char *starts);
+// Move backwards from eol down to start, replacing the last space with a \0
+extern void strip_trailing_spaces (char *eol, const char *start);
+// Evaluates the number pointed by line until a non-digit is encountered
+extern int parse_int (char **line);
+
+typedef struct
+{
+	// number of elements in the list
+	int size;
+	// array of string pointers
+	char **data;
+} strlist_t;
+
+// Load a space-separated list from config key
+extern bool strlist_load (strlist_t *list, const char *key, const char *desc);
+// Free a string list
+extern void strlist_free (strlist_t *list);
+// Check if string list contains selected value
+extern bool strlist_contains (strlist_t *list, const char *str);
+
 #endif /* __AFRD_H__ */

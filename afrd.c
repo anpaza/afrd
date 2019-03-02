@@ -23,13 +23,12 @@
 #define CMSG_FOREACH(cmsg, mh)                                          \
 	for ((cmsg) = CMSG_FIRSTHDR(mh); (cmsg); (cmsg) = CMSG_NXTHDR((mh), (cmsg)))
 
-const char *spaces = " \t\r\n";
-
 const char *g_hdmi_dev = NULL;
 const char *g_hdmi_state = NULL;
-static int g_uevent_sock = -1;
+int g_uevent_sock = -1;
 const char *g_mode_path = NULL;
-static const char *g_vdec_status = NULL;
+const char *g_vdec_status = NULL;
+const char *g_settings_enable = NULL;
 int g_mode_switch_delay_on;
 int g_mode_switch_delay_off;
 int g_mode_switch_delay_retry;
@@ -37,10 +36,14 @@ int g_mode_prefer_exact;
 int g_mode_use_fract;
 int g_mode_blacklist_rates [10];
 int g_mode_blacklist_rates_size;
+bool g_enabled;                 // enabled in config file
+bool g_settings_enabled;        // enabled in android settings
 
 static uevent_filter_t g_filter_frhint;
 static uevent_filter_t g_filter_vdec;
 static uevent_filter_t g_filter_hdmi;
+
+static strlist_t g_vdec_blacklist;
 
 /**
  * The one-shot timer used to switch display mode.
@@ -194,6 +197,13 @@ static void framerate_switch ()
 		return;
 	}
 
+	// check if user has disabled "HDMI self-adaptation" which is
+	// the Chinese synonym for AFR
+	if (!g_enabled || !g_settings_enabled) {
+		trace (1, "User disabled AFR\n");
+		return;
+	}
+
 	// if we don't known movie refresh rate, ask vdec
 	if (g_state.hz == 0) {
 		query_vdec ();
@@ -291,12 +301,21 @@ static void framerate_switch ()
  *      false to set refresh rate to match currently playing movie.
  * @param hz screen refresh rate in fixed-point 24.8 format if known,
  *      or 0 to ask movie refresh rate from vdec.
+ * @param modalias the value of MODALIASE= uevent attribute (codec name)
  */
-static void delayed_framerate_switch (bool restore, int hz)
+static void delayed_framerate_switch (bool restore, int hz, const char *modalias)
 {
 	mstime_t delay = restore ? g_mode_switch_delay_off : g_mode_switch_delay_on;
 
-	trace (2, "Delaying switch to %u.%02u Hz by %d ms\n",
+	if (modalias) {
+		modalias += strskip (modalias, "platform:");
+		if (strlist_contains (&g_vdec_blacklist, modalias)) {
+			trace (1, "Blacklisted vdec %s, skipping AFR\n", modalias);
+			return;
+		}
+	}
+
+	trace (1, "Delaying switch to %u.%02u Hz by %d ms\n",
 		hz >> 8, (100 * (hz & 255)) >> 8, delay);
 
 	if (g_state.restore != restore) {
@@ -308,6 +327,11 @@ static void delayed_framerate_switch (bool restore, int hz)
 		g_state.hz = hz;
 
 	mstime_arm (&g_ost_switch, delay);
+
+	// read android settings now since this is a slow process
+	if (!restore)
+		g_settings_enabled = !g_settings_enable ||
+			(settings_get_int (g_settings_enable, 1) != 0);
 }
 
 static void handle_hdmi_switch ()
@@ -325,18 +349,22 @@ static void handle_hdmi_switch ()
 
 static void handle_uevent (char *msg, ssize_t size)
 {
-	trace (2, "Parsing uevent\n");
-
 	const char *frame_rate_hint = NULL;
 	const char *frame_rate_end_hint = NULL;
 	const char *action = NULL;
+	const char *modalias = NULL;
+	const char *msg_orig = msg;
 
 	uevent_filter_reset (&g_filter_frhint);
 	uevent_filter_reset (&g_filter_vdec);
 	uevent_filter_reset (&g_filter_hdmi);
 
 	for (const char *end = msg + size; msg < end; msg += strlen (msg) + 1) {
-		trace (3, "\t> %s\n", msg);
+		if (msg == msg_orig) {
+			trace (2, "Parsing uevent %s\n", msg);
+			continue;
+		} else
+			trace (3, "\t> %s\n", msg);
 
 		char *val = strchr (msg, '=');
 		if (val)
@@ -351,6 +379,8 @@ static void handle_uevent (char *msg, ssize_t size)
 			frame_rate_end_hint = val;
 		else if (strcmp (msg, "ACTION") == 0)
 			action = val;
+		else if (strcmp (msg, "MODALIAS") == 0)
+			modalias = val;
 
 		/* and count matches for every kind of uevent */
 		uevent_filter_match (&g_filter_frhint, msg, val);
@@ -366,17 +396,17 @@ static void handle_uevent (char *msg, ssize_t size)
 			int frh = strtoul (frame_rate_hint, &end, 10);
 			if (frh && (!end || !*end)) {
 				int fr_hz = (256*96000 + frh / 2) / frh;
-				delayed_framerate_switch (false, fr_hz);
+				delayed_framerate_switch (false, fr_hz, modalias);
 			}
 		} else if (frame_rate_end_hint)
-			delayed_framerate_switch (true, 0);
+			delayed_framerate_switch (true, 0, modalias);
 
 	} else if (uevent_filter_matched (&g_filter_vdec)) {
 		/* got a vdec uevent */
 		if (action && (strcmp (action, "add") == 0))
-			delayed_framerate_switch (false, 0);
+			delayed_framerate_switch (false, 0, modalias);
 		else if (action && (strcmp (action, "remove") == 0))
-			delayed_framerate_switch (true, 0);
+			delayed_framerate_switch (true, 0, modalias);
 
 	} else if (uevent_filter_matched (&g_filter_hdmi)) {
 		/* hdmi plugged on or off */
@@ -573,6 +603,9 @@ int afrd_init ()
 
 	trace (1, "afrd is initializing\n");
 
+	g_enabled = (cfg_get_int ("enable", 1) != 0);
+	g_settings_enable = cfg_get_str ("settings.enable", NULL);
+
 	g_hdmi_dev = cfg_get_str ("hdmi.dev", DEFAULT_HDMI_DEV);
 	g_hdmi_state = cfg_get_str ("hdmi.state", DEFAULT_HDMI_STATE);
 
@@ -581,17 +614,18 @@ int afrd_init ()
 	g_mode_use_fract = cfg_get_int ("mode.use.fract", DEFAULT_MODE_USE_FRACT);
 	blacklist_rates_load ("mode.blacklist.rates");
 
-	trace (1, "Refresh rate selection: use fractional %d, exact %d\n",
+	trace (1, "\trefresh rate selection: use fractional %d, exact %d\n",
 		g_mode_use_fract, g_mode_prefer_exact);
 
 	g_mode_switch_delay_on = cfg_get_int ("switch.delay.on", DEFAULT_MODE_SWITCH_DELAY_ON);
 	g_mode_switch_delay_off = cfg_get_int ("switch.delay.off", DEFAULT_MODE_SWITCH_DELAY_OFF);
 	g_mode_switch_delay_retry = cfg_get_int ("switch.delay.retry", DEFAULT_MODE_SWITCH_DELAY_RETRY);
 
-	trace (1, "Switch delays: on %d, off %d, retry %d ms\n",
+	trace (1, "\tswitch delays: on %d, off %d, retry %d ms\n",
 		g_mode_switch_delay_on, g_mode_switch_delay_off, g_mode_switch_delay_retry);
 
 	g_vdec_status = cfg_get_str ("vdec.status", DEFAULT_VDEC_STATUS);
+	strlist_load (&g_vdec_blacklist, "vdec.blacklist", "vdec blacklist");
 	uevent_filter_load (&g_filter_frhint, "uevent.filter.frhint");
 	uevent_filter_load (&g_filter_vdec, "uevent.filter.vdec");
 	uevent_filter_load (&g_filter_hdmi, "uevent.filter.hdmi");
@@ -616,6 +650,7 @@ void afrd_fini ()
 
 	uevent_filter_fini (&g_filter_frhint);
 	uevent_filter_fini (&g_filter_vdec);
+	strlist_free (&g_vdec_blacklist);
 
 	display_modes_fini ();
 	colorspace_fini ();

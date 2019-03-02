@@ -10,7 +10,7 @@ const char *cfg_get_str (const char *key, const char *defval)
 {
 	const char *ret;
 
-	ret = settings_get (key);
+	ret = settings_afrd_get (key);
 	if (ret)
 		return ret;
 

@@ -10,22 +10,6 @@ display_mode_t *g_modes = NULL;
 int g_modes_n = 0;
 display_mode_t g_current_mode;
 
-static int parse_int (char **line)
-{
-	int v = 0, d;
-
-	while (*line && (d = **line)) {
-		d -= '0';
-		if ((d < 0) || (d > 9))
-			break;
-
-		v = (v * 10) + d;
-		(*line)++;
-	}
-
-	return v;
-}
-
 static bool mode_parse (char *desc, display_mode_t *mode)
 {
 	memset (mode, 0, sizeof (display_mode_t));

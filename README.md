@@ -93,6 +93,9 @@ AFRD uses a simple configuration file that can be used to customize
 its behavior. The file contains either comment lines, starting with
 the '#' character, or key=value pairs.
 
+If a key contains several values, list elements are always separated
+by white spaces.
+
 Every 5 seconds afrd will check the last-modified timestamp on the
 loaded config file. If config file is changed, afrd reloads it.
 
@@ -186,8 +189,8 @@ Android Settings support
 
 Since version 0.2.1 afrd has support for Android settings. When configuration
 file is read, before reading every key from config file, a query is done to
-[Settings.System](https://developer.android.com/reference/android/provider/Settings.System). If the respective setting is found, it overrides the config
-file setting.
+[Settings.System](https://developer.android.com/reference/android/provider/Settings.System).
+If the respective setting is found, it overrides the config file setting.
 
 The name of the settings key has the afrd_ prefix prepended, and all dots in
 key name are replaced by underscore. Thus, to override, say, mode.blacklist.rates
@@ -202,3 +205,17 @@ You can check and modify Android settings from the command line with the
     $ settings get system afrd_mode_blacklist_rates
     23.976 29.97
     $ settings delete system afrd_mode_blacklist_rates
+
+In many firmware variants for AmLogic Android there's a system setting named
+"HDMI self-adaptation". Usually it can have one of three values - something
+like "off" (0), "partial" (1) and "full" (2). afrd will honor this setting.
+But this setting doesn't work most of the time (otherwise afrd wouldn't be
+needed). This setting is stored in Android's settings database.
+
+If you set the "settings.enable" parameter in config file to contain the
+name of the respective Android setting, afrd will obey this setting.
+If it is 0, afrd will not switch framerate, otherwise it will.
+In most cases, you can check if your system has this setting by
+running the command:
+
+    $ settings get system key_hdmi_selfadaption

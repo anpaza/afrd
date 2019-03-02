@@ -1,19 +1,6 @@
 #include "afrd.h"
 #include "uevent_filter.h"
 
-void strip_trailing_spaces (char *eol, const char *start)
-{
-	while (eol > start) {
-		eol--;
-		if (strchr (spaces, *eol) == NULL) {
-			eol++;
-			break;
-		}
-	}
-
-	*eol = 0;
-}
-
 static bool append_rex (uevent_filter_t *uevf, char *str)
 {
 	if (uevf->size >= ARRAY_SIZE (uevf->attr)) {
@@ -85,7 +72,7 @@ bool uevent_filter_load (uevent_filter_t *uevf, const char *kw)
 	if (!val)
 		return false;
 
-	trace (1, "\tloading filter %s:\n", kw);
+	trace (1, "\tloading filter %s\n", kw);
 	return uevent_filter_init (uevf, kw, val);
 }
 
