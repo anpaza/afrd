@@ -601,7 +601,7 @@ int afrd_init ()
 	if (log)
 		trace_log (log);
 
-	trace (1, "afrd is initializing\n");
+	trace (1, "afrd v%s built at %s is initializing\n", g_version, g_bdate);
 
 	g_enabled = (cfg_get_int ("enable", 1) != 0);
 	g_settings_enable = cfg_get_str ("settings.enable", NULL);

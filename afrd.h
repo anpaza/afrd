@@ -45,11 +45,12 @@ typedef struct
 	(hz) >> 8, (100 * ((hz) & 255)) >> 8, \
 	(mode).interlaced ? ", interlaced" : ""
 
-// " \t\r\n"
-extern const char *spaces;
-
 // program name
 extern const char *g_program;
+// program version
+extern const char *g_version;
+// program build date/time
+extern const char *g_bdate;
 // the file name of the active config
 extern const char *g_config;
 // the global config
@@ -115,6 +116,9 @@ extern int sysfs_set_str (const char *device, const char *attr, const char *valu
 extern int sysfs_set_int (const char *device, const char *attr, int value);
 
 extern int sysfs_exists (const char *device_attr);
+
+// " \t\r\n"
+extern const char *spaces;
 
 // Return strlen(starts) if str starts with it, 0 otherwise
 extern int strskip (const char *str, const char *starts);

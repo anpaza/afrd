@@ -8,7 +8,9 @@ summer 2017. Earlier kernels won't emit notifications at the start
 and end of playing video, so the daemon won't work.
 
 Unfortunately, this uevent is gone from kernel 4.9 (used for
-Android 7 and 8), so a custom kernel is required for this to work.
+Android 7 and 8), so afrd can't use frame rate notifications
+on newer kernels. Instead, afrd will use video decoder notifications
+that are emitted at the start and end of playback.
 
 The daemon can be linked either with BioniC (for Android) or with
 glibc (for plain Linux OSes).

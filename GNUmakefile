@@ -12,7 +12,7 @@ CFLAGS.debug = -g -Wall
 LDFLAGS.release = -s
 LDFLAGS.debug = -g
 
-CFLAGS.local = $(CFLAGS.$(MODE)) -Icfg_parse
+CFLAGS.local = $(CFLAGS.$(MODE)) -Icfg_parse -DBDATE="\"$(shell date +"%Y-%m-%d %H:%M:%S")\""
 LDFLAGS.local = $(LDFLAGS.$(MODE))
 
 OUT = out/$(CROSS_COMPILE)$(MODE)/
