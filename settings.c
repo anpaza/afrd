@@ -25,7 +25,7 @@ static const char *g_settings_cmd;
 void settings_init ()
 {
 	g_settings_cmd = cfg_get_str ("settings.cmd", NULL);
-	if (!*g_settings_cmd)
+	if (g_settings_cmd && !*g_settings_cmd)
 		g_settings_cmd = NULL;
 }
 

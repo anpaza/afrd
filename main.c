@@ -40,7 +40,7 @@ struct cfg_struct *g_cfg = NULL;
 
 static void show_version ()
 {
-	printf ("afr daemon version %s\n", g_version);
+	printf ("afr daemon version %s built %s\n", g_version, g_bdate);
 }
 
 static void show_help (char *const *argv)
@@ -180,9 +180,11 @@ static int kill_daemon ()
 
 	close (h);
 
-	if (ok != 0)
+	if (ok != 0) {
+		unlink (g_pidfile);
 		fprintf (stderr, "%s: failed to kill daemon pid %d\n",
 			g_program, pid);
+	}
 
 	return ok;
 }

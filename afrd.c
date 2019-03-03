@@ -589,13 +589,13 @@ int afrd_run ()
 
 int afrd_init ()
 {
-	settings_init ();
-
-        /* load config if not loaded already */
+	/* load config if not loaded already */
 	if (!g_cfg && (load_config (g_config) != 0)) {
 		fprintf (stderr, "%s: failed to load config file\n", g_program);
 		return -1;
 	}
+
+	settings_init ();
 
 	const char *log = cfg_get_str ("log", NULL);
 	if (log)
