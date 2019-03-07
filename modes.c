@@ -9,6 +9,7 @@
 display_mode_t *g_modes = NULL;
 int g_modes_n = 0;
 display_mode_t g_current_mode;
+bool g_current_null = false;
 
 static bool mode_parse (char *desc, display_mode_t *mode)
 {
@@ -16,7 +17,7 @@ static bool mode_parse (char *desc, display_mode_t *mode)
 	if (!desc)
 		return false;
 
-	mode->name = desc;
+	strncpy (mode->name, desc, sizeof (mode->name));
 
 	if (strncmp (desc, "smpte", 5) == 0) {
 		mode->width = 4096;
@@ -36,7 +37,7 @@ static bool mode_parse (char *desc, display_mode_t *mode)
 				case  720: mode->width = 1280; break;
 				case 1080: mode->width = 1920; break;
 				case 2160: mode->width = 3840; break;
-				  default: mode->name = NULL; return false;
+				  default: mode->name [0] = 0; return false;
 			}
 		}
 	}
@@ -50,7 +51,7 @@ static bool mode_parse (char *desc, display_mode_t *mode)
 	else if (c == 'p')
 		mode->interlaced = false;
 	else {
-		mode->name = NULL;
+		mode->name [0] = 0;
 		return false;
 	}
 
@@ -91,25 +92,24 @@ int display_modes_init ()
 	trace (2, "Parsing supported video modes\n");
 
 	// parse the list of video modes supported by display
-	while (modes && *modes) {
-		modes += strspn (modes, spaces);
-		int mode_len = strcspn (modes, spaces);
+	char *cur = modes;
+	while (cur && *cur) {
+		cur += strspn (cur, spaces);
+		int mode_len = strcspn (cur, spaces);
 		if (!mode_len)
 			break;
 
-		if (modes [mode_len - 1] == '*')
+		if (cur [mode_len - 1] == '*')
 			mode_len--;
-		char *mode_name = strndup (modes, mode_len);
+		cur [mode_len] = 0;
 
 		display_mode_t mode;
-		if (mode_parse (mode_name, &mode)) {
+		if (mode_parse (cur, &mode))
 			display_mode_add (&mode);
-		} else {
-			trace (2, "\t%s: unrecognized mode\n", mode_name);
-			free (mode_name);
-		}
+		else
+			trace (2, "\t%s: unrecognized mode\n", cur);
 
-		modes = strchr (modes + mode_len, '\n');
+		cur = strchr (cur + mode_len, '\n');
 	}
 
 	free (modes);
@@ -137,6 +137,11 @@ void display_mode_get_current ()
 {
 	// parse the current video mode
 	char *mode = sysfs_get_str (g_mode_path, NULL);
+	if (!strcmp (mode, "null")) {
+		trace (1, "Current video mode is null!\n");
+		return;
+	}
+
 	if (!mode_parse (mode, &g_current_mode)) {
 		trace (1, "Failed to recognize current video mode '%s'\n", mode);
 		free (mode);
@@ -146,7 +151,7 @@ void display_mode_get_current ()
 	g_current_mode.fractional = false;
 	char *frac_rate = sysfs_get_str (g_hdmi_dev, "frac_rate_policy");
 	if (!frac_rate)
-		fprintf (stderr, "%s: failed to read frac_rate_policy!\n", g_program);
+		trace (1, "failed to read frac_rate_policy!\n");
 	else
 	{
 		g_current_mode.fractional = strtol (frac_rate, NULL, 10) != 0;
@@ -158,8 +163,6 @@ void display_modes_fini ()
 {
 	int i;
 
-	for (i = 0; i < g_modes_n; i++)
-		free (g_modes [i].name);
 	free (g_modes);
 
 	g_modes = NULL;
@@ -224,7 +227,8 @@ void display_mode_set_hz (display_mode_t *mode, int hz)
 
 void display_mode_switch (display_mode_t *mode)
 {
-	if (display_mode_equal (mode, &g_current_mode)) {
+	if (!g_current_null &&
+	    display_mode_equal (mode, &g_current_mode)) {
 		trace (1, "Display mode is already "DISPMODE_FMT"\n",
 			DISPMODE_ARGS (*mode, display_mode_hz (mode)));
 		return;
@@ -234,10 +238,9 @@ void display_mode_switch (display_mode_t *mode)
 		DISPMODE_ARGS (*mode, display_mode_hz (mode)));
 
 	// fractional mode transition via special null mode
-	if ((!mode->name || !g_current_mode.name) ||
-	    ((strcmp (mode->name, g_current_mode.name) == 0) &&
-	     (mode->fractional != g_current_mode.fractional)))
-		sysfs_write (g_mode_path, "null");
+	if ((strcmp (mode->name, g_current_mode.name) == 0) &&
+	    (mode->fractional != g_current_mode.fractional))
+		display_mode_null ();
 
 	char frac [2] = { mode->fractional ? '1' : '0', 0 };
 	sysfs_set_str (g_hdmi_dev, "frac_rate_policy", frac);
@@ -246,4 +249,12 @@ void display_mode_switch (display_mode_t *mode)
 
 	sysfs_write (g_mode_path, mode->name);
 	g_current_mode = *mode;
+	g_current_null = false;
+}
+
+void display_mode_null ()
+{
+	trace (2, "Blackout screen\n");
+	sysfs_write (g_mode_path, "null");
+	g_current_null = true;
 }

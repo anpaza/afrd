@@ -20,9 +20,11 @@
 #define DEFAULT_HDMI_DELAY		300
 #define DEFAULT_VIDEO_MODE		"/sys/class/display/mode"
 #define DEFAULT_VDEC_SYSFS		"/sys/class/vdec"
-#define DEFAULT_MODE_SWITCH_DELAY_ON	250
-#define DEFAULT_MODE_SWITCH_DELAY_OFF	5000
-#define DEFAULT_MODE_SWITCH_DELAY_RETRY	500
+#define DEFAULT_SWITCH_DELAY_ON		250
+#define DEFAULT_SWITCH_DELAY_OFF	5000
+#define DEFAULT_SWITCH_DELAY_RETRY	500
+#define DEFAULT_SWITCH_TIMEOUT		3000
+#define DEFAULT_SWITCH_BLACKOUT		1
 #define DEFAULT_MODE_PREFER_EXACT	0
 #define DEFAULT_MODE_USE_FRACT		0
 
@@ -30,7 +32,7 @@
 
 typedef struct
 {
-	char *name;
+	char name [32];
 	int width;
 	int height;
 	int framerate;
@@ -70,8 +72,8 @@ extern display_mode_t *g_modes;
 extern int g_modes_n;
 // current video mode
 extern display_mode_t g_current_mode;
-// current video mode uses fractional refresh rate? (23.97/24, 29.97/30 etc)
-extern bool g_current_frac;
+// true if screen is disabled
+extern bool g_current_null;
 // the delay before switching display mode
 extern int g_mode_switch_delay;
 
@@ -98,6 +100,8 @@ extern int display_mode_hz (display_mode_t *mode);
 extern void display_mode_set_hz (display_mode_t *mode, int hz);
 // switch video mode
 extern void display_mode_switch (display_mode_t *mode);
+// disable the screen
+extern void display_mode_null ();
 
 // load config from file
 extern int load_config (const char *config);

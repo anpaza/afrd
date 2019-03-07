@@ -29,13 +29,18 @@ int g_uevent_sock = -1;
 const char *g_mode_path = NULL;
 const char *g_vdec_sysfs = NULL;
 const char *g_settings_enable = NULL;
-int g_mode_switch_delay_on;
-int g_mode_switch_delay_off;
-int g_mode_switch_delay_retry;
+
+int g_switch_delay_on;
+int g_switch_delay_off;
+int g_switch_delay_retry;
+int g_switch_timeout;
+bool g_switch_blackout;
+
 int g_mode_prefer_exact;
 int g_mode_use_fract;
 int g_mode_blacklist_rates [10];
 int g_mode_blacklist_rates_size;
+
 bool g_enabled;                 // enabled in config file
 bool g_settings_enabled;        // enabled in android settings
 
@@ -50,7 +55,7 @@ static strlist_t g_vdec_blacklist;
  * If we switch display mode instantly after we receive an uevent,
  * this will work but can lead to excessive display mode switches,
  * which means worse user experience. Thus, we delay display mode
- * switching by MODE_SWITCH_DELAY milliseconds. If we don't receive
+ * switching by SWITCH_DELAY milliseconds. If we don't receive
  * more uevents during that time, we'll switch the mode. This will
  * allow to accumulate several mode switches into one 
  */
@@ -73,6 +78,8 @@ static struct
 	int hz;
 	// the initial video mode (this mode is set when restore==true)
 	display_mode_t orig_mode;
+	// hz detection timeout
+	mstime_t hz_ost;
 	// number of hz samples from dump_vdec_blocks
 	int n_hz_samples;
 	// hz samples from dump_vdec_blocks
@@ -264,11 +271,20 @@ static void query_vdec ()
 		return;
 }
 
+static void framerate_fail ()
+{
+	if (!g_current_null)
+		return;
+
+	display_mode_switch (&g_current_mode);
+}
+
 static void framerate_switch ()
 {
 	if (g_state.restore) {
-		if (!g_state.orig_mode.name) {
+		if (!g_state.orig_mode.name [0]) {
 			trace (1, "No saved display mode to restore\n");
+			framerate_fail ();
 			return;
 		}
 
@@ -281,6 +297,14 @@ static void framerate_switch ()
 	// the Chinese synonym for AFR
 	if (!g_enabled || !g_settings_enabled) {
 		trace (1, "User disabled AFR\n");
+		framerate_fail ();
+		return;
+	}
+
+	if (mstime_enabled (&g_state.hz_ost) &&
+	    mstime_expired (&g_state.hz_ost)) {
+		trace (1, "Timeout detecting movie frame rate, giving up\n");
+		framerate_fail ();
 		return;
 	}
 
@@ -289,8 +313,8 @@ static void framerate_switch ()
 		query_vdec ();
 		if (g_state.hz == 0) {
 			// Cannot determine movie frame rate, retry later
-			if (g_mode_switch_delay_retry)
-				mstime_arm (&g_ost_switch, g_mode_switch_delay_retry);
+			if (g_switch_delay_retry)
+				mstime_arm (&g_ost_switch, g_switch_delay_retry);
 			return;
 		}
 	}
@@ -302,8 +326,6 @@ static void framerate_switch ()
 		tmp.fractional = (g_mode_use_fract == 1);
 		g_state.hz = display_mode_hz (&tmp);
 	}
-
-	display_mode_get_current ();
 
 	trace (1, "Current mode is "DISPMODE_FMT"\n",
 		DISPMODE_ARGS (g_current_mode, display_mode_hz (&g_current_mode)));
@@ -321,7 +343,7 @@ static void framerate_switch ()
 	display_mode_t best_mode;
 	unsigned best_rating = 0;
 	int i;
-	best_mode.name = NULL;
+	best_mode.name [0] = 0;
 	for (i = 0; i < g_modes_n; i++) {
 		display_mode_t *mode = &g_modes [i];
 		if ((mode->width != g_current_mode.width) ||
@@ -364,25 +386,26 @@ static void framerate_switch ()
 		}
 	}
 
-	if (!best_mode.name) {
+	if (!best_mode.name [0]) {
 		trace (1, "Failed to find a suitable display mode\n");
+		framerate_fail ();
 		return;
 	}
 
 	// if we already switched mode to something close to what we found,
 	// avoid unneeded irritating framerate switching in the middle of watching
-	if (g_state.orig_mode.name) {
+	if (g_state.orig_mode.name [0]) {
 		int hz1 = display_mode_hz (&best_mode);
 		int hz2 = display_mode_hz (&g_current_mode);
 		if (hz_close (hz1, hz2)) {
 			trace (1, "Skipping mode switch since current refresh is close enough\n");
+			framerate_fail ();
 			return;
 		}
 	}
 
 	// remember current video mode to restore it later
-	if (!g_state.orig_mode.name/* &&
-	    !display_mode_equal (&best_mode, &g_current_mode)*/)
+	if (!g_state.orig_mode.name [0])
 		g_state.orig_mode = g_current_mode;
 
 	display_mode_switch (&best_mode);
@@ -396,7 +419,7 @@ static void framerate_switch ()
  */
 static void delayed_framerate_switch (bool restore, int hz, const char *modalias)
 {
-	mstime_t delay = restore ? g_mode_switch_delay_off : g_mode_switch_delay_on;
+	mstime_t delay = restore ? g_switch_delay_off : g_switch_delay_on;
 
 	if (!delay) {
 		trace (1, "Refresh rate %s disabled by user\n",
@@ -426,6 +449,19 @@ static void delayed_framerate_switch (bool restore, int hz, const char *modalias
 		g_state.hz = hz;
 
 	mstime_arm (&g_ost_switch, delay);
+
+	if (restore)
+		mstime_disable (&g_state.hz_ost);
+	else {
+		mstime_arm (&g_state.hz_ost, g_switch_timeout);
+
+		// when movie starts, disable screen until we switch to actual frame rate
+		if (!g_state.orig_mode.name [0] && g_switch_blackout) {
+			display_mode_get_current ();
+			g_state.orig_mode = g_current_mode;
+			display_mode_null ();
+		}
+	}
 
 	// read android settings now since this is a slow process
 	if (!restore)
@@ -716,12 +752,14 @@ int afrd_init ()
 	trace (1, "\trefresh rate selection: use fractional %d, exact %d\n",
 		g_mode_use_fract, g_mode_prefer_exact);
 
-	g_mode_switch_delay_on = cfg_get_int ("switch.delay.on", DEFAULT_MODE_SWITCH_DELAY_ON);
-	g_mode_switch_delay_off = cfg_get_int ("switch.delay.off", DEFAULT_MODE_SWITCH_DELAY_OFF);
-	g_mode_switch_delay_retry = cfg_get_int ("switch.delay.retry", DEFAULT_MODE_SWITCH_DELAY_RETRY);
+	g_switch_delay_on = cfg_get_int ("switch.delay.on", DEFAULT_SWITCH_DELAY_ON);
+	g_switch_delay_off = cfg_get_int ("switch.delay.off", DEFAULT_SWITCH_DELAY_OFF);
+	g_switch_delay_retry = cfg_get_int ("switch.delay.retry", DEFAULT_SWITCH_DELAY_RETRY);
+	g_switch_timeout = cfg_get_int ("switch.timeout", DEFAULT_SWITCH_TIMEOUT);
+	g_switch_blackout = cfg_get_int ("switch.blackout", DEFAULT_SWITCH_BLACKOUT) != 0;
 
 	trace (1, "\tswitch delays: on %d, off %d, retry %d ms\n",
-		g_mode_switch_delay_on, g_mode_switch_delay_off, g_mode_switch_delay_retry);
+		g_switch_delay_on, g_switch_delay_off, g_switch_delay_retry);
 
 	g_vdec_sysfs = cfg_get_str ("vdec.sysfs", DEFAULT_VDEC_SYSFS);
 	strlist_load (&g_vdec_blacklist, "vdec.blacklist", "vdec blacklist");
