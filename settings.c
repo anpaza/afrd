@@ -50,7 +50,9 @@ static bool run_cmd (const char *cmd [], char *res, int res_max)
 	pid_t pid = fork ();
 	if (pid == 0) {
 		/* child process */
+		dup2 (out [1], STDIN_FILENO);
 		dup2 (out [1], STDOUT_FILENO);
+		dup2 (out [1], STDERR_FILENO);
 		exit (execv (cmd [0], (char *const *)cmd));
 	}
 

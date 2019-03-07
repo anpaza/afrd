@@ -116,6 +116,20 @@ int display_modes_init ()
 
 	display_mode_get_current ();
 
+	// on some weird configs current video mode may not be listed in disp_cap
+	display_mode_add (&g_current_mode);
+
+	// add extra user-specified modes from config
+	strlist_t xmodes;
+	if (strlist_load (&xmodes, "mode.extra", "extra video modes")) {
+		for (int i = 0; i < xmodes.size; i++) {
+			display_mode_t mode;
+			if (mode_parse (xmodes.data [i], &mode))
+				display_mode_add (&mode);
+		}
+		strlist_free (&xmodes);
+	}
+
 	return 0;
 }
 
@@ -138,9 +152,6 @@ void display_mode_get_current ()
 		g_current_mode.fractional = strtol (frac_rate, NULL, 10) != 0;
 		free (frac_rate);
 	}
-
-	// on some weird configs current video mode may not be listed in disp_cap
-	display_mode_add (&g_current_mode);
 }
 
 void display_modes_fini ()

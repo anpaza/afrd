@@ -95,3 +95,22 @@ bool strlist_contains (strlist_t *list, const char *str)
 
 	return false;
 }
+
+unsigned long find_ulong (const char *str, const char *prefix, bool *ok)
+{
+	if (!*ok)
+		return false;
+
+	const char *pfx = strstr (str, prefix);
+	if (!pfx)
+		goto fail;
+
+	char *tmp;
+	pfx += strlen (prefix);
+	unsigned long val = strtoul (pfx, &tmp, 10);
+	if (tmp > pfx)
+		return val;
+
+fail:	*ok = false;
+	return 0;
+}

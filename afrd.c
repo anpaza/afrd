@@ -27,7 +27,7 @@ const char *g_hdmi_dev = NULL;
 const char *g_hdmi_state = NULL;
 int g_uevent_sock = -1;
 const char *g_mode_path = NULL;
-const char *g_vdec_status = NULL;
+const char *g_vdec_sysfs = NULL;
 const char *g_settings_enable = NULL;
 int g_mode_switch_delay_on;
 int g_mode_switch_delay_off;
@@ -73,6 +73,14 @@ static struct
 	int hz;
 	// the initial video mode (this mode is set when restore==true)
 	display_mode_t orig_mode;
+	// number of hz samples from dump_vdec_blocks
+	int n_hz_samples;
+	// hz samples from dump_vdec_blocks
+	int hz_samples [3];
+	// hz sample from vdec_status
+	int hz_sample;
+	// a stamp to detect when dump_vdec_blocks stays still
+	int hz_samples_stamp;
 } g_state;
 
 static bool uevent_open (int buf_sz)
@@ -112,23 +120,91 @@ static bool rate_is_blacklisted (int rate)
 	return false;
 }
 
+static bool hz_close (int hz1, int hz2)
+{
+	int rate = (hz1 * 1000 + hz2 / 2) / hz2;
+	return abs (rate - 1000) < 2;
+}
+
+static int average_hz_samples ()
+{
+	if (!g_state.n_hz_samples)
+		return 0;
+
+	int ave = 0;
+	for (int i = 0; i < g_state.n_hz_samples; i++)
+		ave += g_state.hz_samples [i];
+
+	return ave / g_state.n_hz_samples;
+}
+
+static bool enough_hz_samples (int hz, int type)
+{
+	for (int i = 0; i < g_state.n_hz_samples; i++)
+		if (!hz_close (hz, g_state.hz_samples [i])) {
+			g_state.n_hz_samples = 0;
+			g_state.hz_sample = 0;
+			break;
+		}
+
+	if (type == 1)
+		g_state.hz_sample = hz;
+
+	g_state.hz_samples [g_state.n_hz_samples++] = hz;
+	if (g_state.n_hz_samples < ARRAY_SIZE (g_state.hz_samples))
+		return false;
+
+	g_state.hz = g_state.hz_sample ? g_state.hz_sample : average_hz_samples ();
+	g_state.n_hz_samples = 0;
+	g_state.hz_sample = 0;
+	return true;
+}
+
 static void query_vdec ()
 {
-	if (!g_vdec_status)
+	FILE *vsf;
+	char line [200];
+
+	if (!g_vdec_sysfs)
 		return;
 
 	trace (2, "Querying movie parameters from vdec\n");
 
-	FILE *vsf = fopen (g_vdec_status, "r");
+	// some decoders provide additional stats we can use to cross-check fps
+	snprintf (line, sizeof (line), "%s/dump_vdec_blocks", g_vdec_sysfs);
+	vsf = fopen (line, "r");
+	if (vsf) {
+		bool ok = fgets (line, sizeof (line), vsf) != NULL;
+		fclose (vsf);
+		if (ok) {
+			unsigned dsize = find_ulong (line, ",dsize=", &ok);
+			unsigned nframes = find_ulong (line, ",frames:", &ok);
+			unsigned timeint = find_ulong (line, ",dur:", &ok);
+
+			// if we don't have enough stats, don't take them into account
+			if (ok && nframes > 3 && timeint > 100 &&
+			    g_state.hz_samples_stamp != dsize) {
+				trace (3, "\t%d frames played over last %dms\n",
+					nframes, timeint);
+				g_state.hz_samples_stamp = dsize;
+				int hz = nframes * 256000 / timeint;
+				if (enough_hz_samples (hz, 0))
+					return;
+			}
+		}
+	}
+
+	snprintf (line, sizeof (line), "%s/vdec_status", g_vdec_sysfs);
+	vsf = fopen (line, "r");
 	if (!vsf) {
-		trace (1, "Failed to open %s\n", g_vdec_status);
+		trace (1, "Failed to open %s/vdec_status\n", g_vdec_sysfs);
+		g_vdec_sysfs = NULL;
 		return;
 	}
 
 	// the values we're going to extract
 	long fps = 0, frame_dur = 0;
 
-	char line [200];
 	while (fgets (line, sizeof (line), vsf)) {
 		// Bionic sscanf sucks badly, so parse the string manually...
 		char *cur = line;
@@ -172,16 +248,20 @@ static void query_vdec ()
 	fclose (vsf);
 
 	// Prefer frame_dur over fps, but sometimes it's 0
+	int hz = 0;
 	if (frame_dur)
-		g_state.hz = (256*96000 + frame_dur / 2) / frame_dur;
+		hz = (256*96000 + frame_dur / 2) / frame_dur;
 	else if ((fps > 0) && (fps <= 1000)) {
 		switch (fps) {
-			case 23: g_state.hz = (2997 * 256 + 62) / 125; break;
-			case 29: g_state.hz = (2997 * 256 + 50) / 100; break;
-			case 59: g_state.hz = (5994 * 256 + 50) / 100; break;
-			default: g_state.hz = fps << 8; break;
+			case 23: hz = (2997 * 256 + 62) / 125; break;
+			case 29: hz = (2997 * 256 + 50) / 100; break;
+			case 59: hz = (5994 * 256 + 50) / 100; break;
+			default: hz = fps << 8; break;
 		}
 	}
+
+	if (hz && enough_hz_samples (hz, 1))
+		return;
 }
 
 static void framerate_switch ()
@@ -193,7 +273,7 @@ static void framerate_switch ()
 		}
 
 		display_mode_switch (&g_state.orig_mode);
-		g_state.orig_mode.name = NULL;
+		memset (&g_state, 0, sizeof (g_state));
 		return;
 	}
 
@@ -289,9 +369,20 @@ static void framerate_switch ()
 		return;
 	}
 
+	// if we already switched mode to something close to what we found,
+	// avoid unneeded irritating framerate switching in the middle of watching
+	if (g_state.orig_mode.name) {
+		int hz1 = display_mode_hz (&best_mode);
+		int hz2 = display_mode_hz (&g_current_mode);
+		if (hz_close (hz1, hz2)) {
+			trace (1, "Skipping mode switch since current refresh is close enough\n");
+			return;
+		}
+	}
+
 	// remember current video mode to restore it later
-	if (!g_state.orig_mode.name &&
-	    !display_mode_equal (&best_mode, &g_current_mode))
+	if (!g_state.orig_mode.name/* &&
+	    !display_mode_equal (&best_mode, &g_current_mode)*/)
 		g_state.orig_mode = g_current_mode;
 
 	display_mode_switch (&best_mode);
@@ -307,6 +398,12 @@ static void delayed_framerate_switch (bool restore, int hz, const char *modalias
 {
 	mstime_t delay = restore ? g_mode_switch_delay_off : g_mode_switch_delay_on;
 
+	if (!delay) {
+		trace (1, "Refresh rate %s disabled by user\n",
+			restore ? "restoration" : "setting");
+		return;
+	}
+
 	if (modalias) {
 		modalias += strskip (modalias, "platform:");
 		if (strlist_contains (&g_vdec_blacklist, modalias)) {
@@ -321,6 +418,8 @@ static void delayed_framerate_switch (bool restore, int hz, const char *modalias
 	if (g_state.restore != restore) {
 		g_state.restore = restore;
 		g_state.hz = hz;
+		// start collecting starts all over again
+		g_state.n_hz_samples = 0;
 	}
 	// if we known desired hz, don't overwrite with 0 that may come from vdec uevent
 	if (hz)
@@ -606,7 +705,7 @@ int afrd_init ()
 	g_enabled = (cfg_get_int ("enable", 1) != 0);
 	g_settings_enable = cfg_get_str ("settings.enable", NULL);
 
-	g_hdmi_dev = cfg_get_str ("hdmi.dev", DEFAULT_HDMI_DEV);
+	g_hdmi_dev = cfg_get_str ("hdmi.sysfs", DEFAULT_HDMI_DEV);
 	g_hdmi_state = cfg_get_str ("hdmi.state", DEFAULT_HDMI_STATE);
 
 	g_mode_path = cfg_get_str ("mode.path", DEFAULT_VIDEO_MODE);
@@ -624,7 +723,7 @@ int afrd_init ()
 	trace (1, "\tswitch delays: on %d, off %d, retry %d ms\n",
 		g_mode_switch_delay_on, g_mode_switch_delay_off, g_mode_switch_delay_retry);
 
-	g_vdec_status = cfg_get_str ("vdec.status", DEFAULT_VDEC_STATUS);
+	g_vdec_sysfs = cfg_get_str ("vdec.sysfs", DEFAULT_VDEC_SYSFS);
 	strlist_load (&g_vdec_blacklist, "vdec.blacklist", "vdec blacklist");
 	uevent_filter_load (&g_filter_frhint, "uevent.filter.frhint");
 	uevent_filter_load (&g_filter_vdec, "uevent.filter.vdec");

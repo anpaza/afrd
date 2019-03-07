@@ -19,7 +19,7 @@
 #define DEFAULT_HDMI_STATE		"/sys/class/switch/hdmi/state"
 #define DEFAULT_HDMI_DELAY		300
 #define DEFAULT_VIDEO_MODE		"/sys/class/display/mode"
-#define DEFAULT_VDEC_STATUS		"/sys/class/vdec/vdec_status"
+#define DEFAULT_VDEC_SYSFS		"/sys/class/vdec"
 #define DEFAULT_MODE_SWITCH_DELAY_ON	250
 #define DEFAULT_MODE_SWITCH_DELAY_OFF	5000
 #define DEFAULT_MODE_SWITCH_DELAY_RETRY	500
@@ -126,6 +126,8 @@ extern int strskip (const char *str, const char *starts);
 extern void strip_trailing_spaces (char *eol, const char *start);
 // Evaluates the number pointed by line until a non-digit is encountered
 extern int parse_int (char **line);
+// Similar but first looks for number prefix in line and sets ok to false on error
+extern unsigned long find_ulong (const char *str, const char *prefix, bool *ok);
 
 typedef struct
 {

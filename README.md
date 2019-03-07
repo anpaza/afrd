@@ -118,6 +118,10 @@ The following parameters are recognized by AFRD:
     to avoid unneeded mode switches at position change or when you're
     watching a series of videos with same framerate.
 
+    Setting a parameter to zero will disable the respective operation.
+    For example, if you want to completely disable restoration of the
+    original refresh rate, set switch.delay.off to 0.
+
     The time is given in milliseconds.
 
 * *switch.delay.retry*
@@ -158,6 +162,12 @@ The following parameters are recognized by AFRD:
     Thus, this refresh rate is blacklisted by default.
 
     This is a list of numbers separated by spaces.
+
+* *mode.extra*
+    Normally afrd takes the list of supported video modes from EDID info blob
+    fetched via HDMI from your TV. Sometimes this info doesn't contain all the
+    supported modes. You can put a list of additional supported video modes
+    that aren't listed
 
 * *vdec.status*
     This points to sysfs attribute containing the status of the video decoder.
