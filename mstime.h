@@ -106,10 +106,13 @@ static inline int mstime_left (mstime_t *timer)
  * @arg timer
  *      A pointer to the variable that holds the timer.
  * @return
- *      true if timer expired or is disabled.
+ *      true if timer expired, false if not expired or disabled.
  */
 static inline bool mstime_expired (mstime_t *timer)
 {
+	if (!mstime_enabled (timer))
+		return false;
+
 	if (mstime_left (timer) > 0)
 		return false;
 

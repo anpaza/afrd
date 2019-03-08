@@ -24,7 +24,7 @@
 #define DEFAULT_SWITCH_DELAY_OFF	5000
 #define DEFAULT_SWITCH_DELAY_RETRY	500
 #define DEFAULT_SWITCH_TIMEOUT		3000
-#define DEFAULT_SWITCH_BLACKOUT		1
+#define DEFAULT_SWITCH_BLACKOUT		50
 #define DEFAULT_MODE_PREFER_EXACT	0
 #define DEFAULT_MODE_USE_FRACT		0
 
@@ -132,6 +132,8 @@ extern void strip_trailing_spaces (char *eol, const char *start);
 extern int parse_int (char **line);
 // Similar but first looks for number prefix in line and sets ok to false on error
 extern unsigned long find_ulong (const char *str, const char *prefix, bool *ok);
+// Same but returns a unsigned long long
+extern unsigned long long find_ulonglong (const char *str, const char *prefix, bool *ok);
 
 typedef struct
 {

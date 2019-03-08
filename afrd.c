@@ -34,7 +34,7 @@ int g_switch_delay_on;
 int g_switch_delay_off;
 int g_switch_delay_retry;
 int g_switch_timeout;
-bool g_switch_blackout;
+int g_switch_blackout;
 
 int g_mode_prefer_exact;
 int g_mode_use_fract;
@@ -68,6 +68,11 @@ static mstime_t g_ost_switch;
 static mstime_t g_ost_hdmi;
 
 /**
+ * Screen blackout timer
+ */
+static mstime_t g_ost_blackout;
+
+/**
  * What mode should we set when g_ost_switch expires
  */
 static struct
@@ -88,6 +93,8 @@ static struct
 	int hz_sample;
 	// a stamp to detect when dump_vdec_blocks stays still
 	int hz_samples_stamp;
+	// last time when we used vdec_chunks
+	mstime_t ost_chunks;
 } g_state;
 
 static bool uevent_open (int buf_sz)
@@ -167,42 +174,148 @@ static bool enough_hz_samples (int hz, int type)
 	return true;
 }
 
+static bool query_vdec_blocks ()
+{
+	char line [200];
+	snprintf (line, sizeof (line), "%s/dump_vdec_blocks", g_vdec_sysfs);
+	FILE *vsf = fopen (line, "r");
+	if (!vsf)
+		return false;
+
+	bool ok = fgets (line, sizeof (line), vsf) != NULL;
+	fclose (vsf);
+	if (!ok)
+		return false;
+
+	unsigned dsize = find_ulong (line, ",dsize=", &ok);
+	unsigned nframes = find_ulong (line, ",frames:", &ok);
+	unsigned timeint = find_ulong (line, ",dur:", &ok);
+
+	// if we don't have enough stats, don't take it into account
+	if (ok && nframes >= 5 && timeint > 120 &&
+	    g_state.hz_samples_stamp != dsize) {
+		int hz = nframes * 256000 / timeint;
+		g_state.hz_samples_stamp = dsize;
+		trace (3, "\t%d frames played over last %dms at %u.%02ufps\n",
+			nframes, timeint, (hz) >> 8, (100 * ((hz) & 255)) >> 8);
+		if (enough_hz_samples (hz, 0))
+			return true;
+	}
+
+	return false;
+}
+
+static int compare_pts (const void *a, const void *b)
+{
+	int ptsa = *(int *)a;
+	int ptsb = *(int *)b;
+	return ptsa - ptsb;
+}
+
+static bool query_vdec_chunks ()
+{
+	char buff [4096];
+	snprintf (buff, sizeof (buff), "%s/dump_vdec_chunks", g_vdec_sysfs);
+	int vsh = open (buff, O_RDONLY);
+	if (vsh < 0)
+		goto failed;
+
+	int size = read (vsh, buff, sizeof (buff) - 1);
+	close (vsh);
+	if (size < 100)
+		goto failed;
+
+	buff [size] = 0;
+	char *cur = buff;
+	int pts [64];
+	int pts_size = 0;
+	unsigned long long pts64_base;
+
+	while (*cur) {
+		char *eol = strchr (cur, '\n');
+		if (!eol)
+			break; // incomplete line
+		*eol = '\0';
+
+		bool ok = true;
+		unsigned long long pts64 = find_ulonglong (cur, "pts64=", &ok);
+		if (ok) {
+			if (!pts_size)
+				pts64_base = pts64;
+			pts [pts_size++] = (int)(pts64 - pts64_base);
+			if (pts_size > ARRAY_SIZE (pts))
+				break; // enough data
+		}
+
+		cur = eol + 1;
+	}
+
+	if (pts_size < 5)
+		goto failed;
+
+	qsort (pts, pts_size, sizeof (pts [0]), compare_pts);
+
+	// transform to usecs per frame
+	int i;
+	for (i = 1; i < pts_size; i++)
+		pts [i - 1] = pts [i] - pts [i - 1];
+	pts_size--;
+
+	// now compute the average frame rate
+	int base_pts = pts [0];
+	int avg_pts = base_pts;
+	int avg_count = 1;
+	for (i = 1; i < pts_size; i++) {
+		int rate = 128 * pts [i] / base_pts;
+		if ((rate >= 247) && (rate <= 264)) {
+			// pts [i] is a frame skip
+			avg_count++;
+		} else if ((rate >= 62) && (rate <= 66)) {
+			// all previous pts were frame skips
+			avg_count *= 2;
+			base_pts = pts [i];
+		} else if ((pts [i] > base_pts + 1500) || (pts [i] < base_pts - 1500))
+			continue; // totally wrong pts
+		avg_count++;
+		avg_pts += pts [i];
+	}
+
+	if (avg_count < 3)
+		goto failed;
+
+	int hz = (avg_count * 256 * 1000) / ((avg_pts + 500) / 1000);
+	trace (1, "Average from %d video chunks %u.%02u fps\n",
+		avg_count, (hz) >> 8, (100 * ((hz) & 255)) >> 8);
+	// this gives fps with very high precision, so don't use other sources
+	enough_hz_samples (hz, 0);
+	mstime_arm (&g_state.ost_chunks, g_switch_delay_retry);
+	return true;
+
+failed:
+	// if we can't see chunks stats, let's hope kernel can do something
+	// but only if chunks are missing for two retry times
+	if (mstime_enabled (&g_state.ost_chunks) &&
+	    !mstime_expired (&g_state.ost_chunks))
+		return false;
+
+	mstime_disable (&g_state.ost_chunks);
+	return query_vdec_blocks ();
+}
+
 static void query_vdec ()
 {
-	FILE *vsf;
-	char line [200];
-
 	if (!g_vdec_sysfs)
 		return;
 
 	trace (2, "Querying movie parameters from vdec\n");
 
 	// some decoders provide additional stats we can use to cross-check fps
-	snprintf (line, sizeof (line), "%s/dump_vdec_blocks", g_vdec_sysfs);
-	vsf = fopen (line, "r");
-	if (vsf) {
-		bool ok = fgets (line, sizeof (line), vsf) != NULL;
-		fclose (vsf);
-		if (ok) {
-			unsigned dsize = find_ulong (line, ",dsize=", &ok);
-			unsigned nframes = find_ulong (line, ",frames:", &ok);
-			unsigned timeint = find_ulong (line, ",dur:", &ok);
+	if (query_vdec_chunks ())
+		return;
 
-			// if we don't have enough stats, don't take them into account
-			if (ok && nframes > 3 && timeint > 100 &&
-			    g_state.hz_samples_stamp != dsize) {
-				trace (3, "\t%d frames played over last %dms\n",
-					nframes, timeint);
-				g_state.hz_samples_stamp = dsize;
-				int hz = nframes * 256000 / timeint;
-				if (enough_hz_samples (hz, 0))
-					return;
-			}
-		}
-	}
-
+	char line [200];
 	snprintf (line, sizeof (line), "%s/vdec_status", g_vdec_sysfs);
-	vsf = fopen (line, "r");
+	FILE *vsf = fopen (line, "r");
 	if (!vsf) {
 		trace (1, "Failed to open %s/vdec_status\n", g_vdec_sysfs);
 		g_vdec_sysfs = NULL;
@@ -271,8 +384,22 @@ static void query_vdec ()
 		return;
 }
 
+static void blackout ()
+{
+	mstime_disable (&g_ost_blackout);
+
+	if (g_current_null)
+		return;
+
+	display_mode_get_current ();
+	g_state.orig_mode = g_current_mode;
+	display_mode_null ();
+}
+
 static void framerate_fail ()
 {
+	mstime_disable (&g_ost_blackout);
+
 	if (!g_current_null)
 		return;
 
@@ -301,8 +428,7 @@ static void framerate_switch ()
 		return;
 	}
 
-	if (mstime_enabled (&g_state.hz_ost) &&
-	    mstime_expired (&g_state.hz_ost)) {
+	if (mstime_expired (&g_state.hz_ost)) {
 		trace (1, "Timeout detecting movie frame rate, giving up\n");
 		framerate_fail ();
 		return;
@@ -394,7 +520,7 @@ static void framerate_switch ()
 
 	// if we already switched mode to something close to what we found,
 	// avoid unneeded irritating framerate switching in the middle of watching
-	if (g_state.orig_mode.name [0]) {
+	if (g_state.orig_mode.name [0] && !g_current_null) {
 		int hz1 = display_mode_hz (&best_mode);
 		int hz2 = display_mode_hz (&g_current_mode);
 		if (hz_close (hz1, hz2)) {
@@ -403,6 +529,8 @@ static void framerate_switch ()
 			return;
 		}
 	}
+
+	mstime_disable (&g_ost_blackout);
 
 	// remember current video mode to restore it later
 	if (!g_state.orig_mode.name [0])
@@ -419,6 +547,8 @@ static void framerate_switch ()
  */
 static void delayed_framerate_switch (bool restore, int hz, const char *modalias)
 {
+	mstime_disable (&g_ost_blackout);
+
 	mstime_t delay = restore ? g_switch_delay_off : g_switch_delay_on;
 
 	if (!delay) {
@@ -454,19 +584,11 @@ static void delayed_framerate_switch (bool restore, int hz, const char *modalias
 		mstime_disable (&g_state.hz_ost);
 	else {
 		mstime_arm (&g_state.hz_ost, g_switch_timeout);
-
 		// when movie starts, disable screen until we switch to actual frame rate
-		if (!g_state.orig_mode.name [0] && g_switch_blackout) {
-			display_mode_get_current ();
-			g_state.orig_mode = g_current_mode;
-			display_mode_null ();
-		}
+		if (!g_state.orig_mode.name [0] && g_switch_blackout &&
+		    g_enabled && g_settings_enabled)
+			mstime_arm (&g_ost_blackout, g_switch_blackout);
 	}
-
-	// read android settings now since this is a slow process
-	if (!restore)
-		g_settings_enabled = !g_settings_enable ||
-			(settings_get_int (g_settings_enable, 1) != 0);
 }
 
 static void handle_hdmi_switch ()
@@ -638,11 +760,12 @@ static void blacklist_rates_load (const char *kw)
 /* check config file once in 5 seconds */
 #define CONFIG_CHECK_PERIOD	5000
 
-static int min_time (int t1, int t2)
+static int min_time (int to, mstime_t *ost)
 {
-	if ((t1 < 0) || ((t2 >= 0) && (t2 < t1)))
-		return t2;
-	return t1;
+	int tost = mstime_left (ost);
+	if ((to < 0) || ((tost >= 0) && (tost < to)))
+		return tost;
+	return to;
 }
 
 static time_t mtime (const char *fn)
@@ -669,15 +792,20 @@ int afrd_run ()
 
 	mstime_disable (&g_ost_switch);
 	mstime_disable (&g_ost_hdmi);
+	mstime_disable (&g_ost_blackout);
 
+	// Check config timestamp timer
 	mstime_t ost_config;
-	mstime_arm (&ost_config, CONFIG_CHECK_PERIOD);
+	mstime_arm (&ost_config, 1);
 	time_t config_mtime = mtime (g_config);
 
 	while (!g_shutdown) {
-		int to = min_time (min_time (mstime_left (&g_ost_switch),
-					     mstime_left (&g_ost_hdmi)),
-				   mstime_left (&ost_config));
+		mstime_update ();
+
+		int to = mstime_left (&g_ost_switch);
+		to = min_time (to, &g_ost_hdmi);
+		to = min_time (to, &g_ost_blackout);
+		to = min_time (to, &ost_config);
 
 		// wait until either a new uevent comes
 		// or the delayed mode switch timer expires
@@ -691,27 +819,39 @@ int afrd_run ()
 			if (pfd.revents & POLLIN)
 				handle_uevents ();
 
+		// disable screen at start of playback
+		if (mstime_expired (&g_ost_blackout))
+			blackout ();
+
 		// if mode switch timer expired, switch the mode finally
-		if (mstime_enabled (&g_ost_switch) &&
-		    mstime_expired (&g_ost_switch)) {
+		if (mstime_expired (&g_ost_switch)) {
 			mstime_disable (&g_ost_switch);
 			framerate_switch ();
 		}
 
-		if (mstime_enabled (&g_ost_hdmi) &&
-		    mstime_expired (&g_ost_hdmi)) {
+		// query supported video modes after HDMI has been plugged on
+		if (mstime_expired (&g_ost_hdmi)) {
 			mstime_disable (&g_ost_hdmi);
 			handle_hdmi_switch ();
 		}
 
+		// check config timestamp and reload it if so
 		if (mstime_expired (&ost_config)) {
 			mstime_arm (&ost_config, CONFIG_CHECK_PERIOD);
+			// if we're doing other work, don't hog the CPU
+			if (!mstime_enabled (&g_ost_blackout) &&
+			    !mstime_enabled (&g_ost_switch) &&
+			    !mstime_enabled (&g_ost_hdmi)) {
+				// read android settings when idle since this is a slow process
+				g_settings_enabled = !g_settings_enable ||
+					(settings_get_int (g_settings_enable, 1) != 0);
 
-			time_t cmt = mtime (g_config);
-			if ((cmt != 0) && (cmt != config_mtime)) {
-				trace (1, "config file %s changed, reloading\n", g_config);
-				ret = 1;
-				break;
+				time_t cmt = mtime (g_config);
+				if ((cmt != 0) && (cmt != config_mtime)) {
+					trace (1, "config file %s changed, reloading\n", g_config);
+					ret = 1;
+					break;
+				}
 			}
 		}
 	}
@@ -756,7 +896,7 @@ int afrd_init ()
 	g_switch_delay_off = cfg_get_int ("switch.delay.off", DEFAULT_SWITCH_DELAY_OFF);
 	g_switch_delay_retry = cfg_get_int ("switch.delay.retry", DEFAULT_SWITCH_DELAY_RETRY);
 	g_switch_timeout = cfg_get_int ("switch.timeout", DEFAULT_SWITCH_TIMEOUT);
-	g_switch_blackout = cfg_get_int ("switch.blackout", DEFAULT_SWITCH_BLACKOUT) != 0;
+	g_switch_blackout = cfg_get_int ("switch.blackout", DEFAULT_SWITCH_BLACKOUT);
 
 	trace (1, "\tswitch delays: on %d, off %d, retry %d ms\n",
 		g_switch_delay_on, g_switch_delay_off, g_switch_delay_retry);

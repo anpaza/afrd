@@ -131,6 +131,15 @@ The following parameters are recognized by AFRD:
 
     The time is given in milliseconds.
 
+* *switch.timeout*
+    If movie frame rate cannot be safely determined for this period
+    of time, afrd will give up trying.
+
+* *switch.blackout*
+    When movie starts after this period of time the screen will be
+    disabled to minimize flicker. Don't set it too low as in some
+    circumstances screen may be blacked out when it shouldn't be.
+
 * *mode.path*
     Points to sysfs file used to switch current video mode.
     This is usually /sys/class/display/mode.

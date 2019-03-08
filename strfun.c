@@ -114,3 +114,22 @@ unsigned long find_ulong (const char *str, const char *prefix, bool *ok)
 fail:	*ok = false;
 	return 0;
 }
+
+unsigned long long find_ulonglong (const char *str, const char *prefix, bool *ok)
+{
+	if (!*ok)
+		return false;
+
+	const char *pfx = strstr (str, prefix);
+	if (!pfx)
+		goto fail;
+
+	char *tmp;
+	pfx += strlen (prefix);
+	unsigned long val = strtoull (pfx, &tmp, 10);
+	if (tmp > pfx)
+		return val;
+
+fail:	*ok = false;
+	return 0;
+}
