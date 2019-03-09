@@ -252,6 +252,9 @@ void display_mode_switch (display_mode_t *mode)
 
 void display_mode_null ()
 {
+	if (g_current_null)
+		return;
+
 	trace (2, "Blackout screen\n");
 	sysfs_write (g_mode_path, "null");
 	g_current_null = true;
