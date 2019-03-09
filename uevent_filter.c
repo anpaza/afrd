@@ -57,6 +57,8 @@ bool uevent_filter_init (uevent_filter_t *uevf, const char *name, const char *fi
 
 void uevent_filter_fini (uevent_filter_t *uevf)
 {
+	if (uevf->name)
+		free (uevf->name);
 	if (uevf->filter)
 		free (uevf->filter);
 

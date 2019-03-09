@@ -109,7 +109,7 @@ int display_modes_init ()
 		else
 			trace (2, "\t%s: unrecognized mode\n", cur);
 
-		cur = strchr (cur + mode_len, '\n');
+		cur += mode_len + 1;
 	}
 
 	free (modes);
@@ -161,8 +161,6 @@ void display_mode_get_current ()
 
 void display_modes_fini ()
 {
-	int i;
-
 	free (g_modes);
 
 	g_modes = NULL;
@@ -234,13 +232,13 @@ void display_mode_switch (display_mode_t *mode)
 		return;
 	}
 
-	trace (1, "Switching display mode to "DISPMODE_FMT"\n",
-		DISPMODE_ARGS (*mode, display_mode_hz (mode)));
-
 	// fractional mode transition via special null mode
 	if ((strcmp (mode->name, g_current_mode.name) == 0) &&
 	    (mode->fractional != g_current_mode.fractional))
 		display_mode_null ();
+
+	trace (1, "Switching display mode to "DISPMODE_FMT"\n",
+		DISPMODE_ARGS (*mode, display_mode_hz (mode)));
 
 	char frac [2] = { mode->fractional ? '1' : '0', 0 };
 	sysfs_set_str (g_hdmi_dev, "frac_rate_policy", frac);

@@ -403,7 +403,11 @@ static void framerate_fail ()
 	if (!g_current_null)
 		return;
 
-	display_mode_switch (&g_current_mode);
+	if (g_state.orig_mode.name [0]) {
+		display_mode_switch (&g_state.orig_mode);
+		memset (&g_state, 0, sizeof (g_state));
+	} else
+		display_mode_switch (&g_current_mode);
 }
 
 static void framerate_switch ()
@@ -465,6 +469,8 @@ static void framerate_switch ()
 	 *    than 4.1% (difference between 23.976 and 25 Hz)
 	 * c) Has the highest framerate (e.g. 50Hz display modes are
 	 *    better than 25Hz display modes for displaying 25Hz video)
+	 *    if g_mode_prefer_exact is 0, or
+	 * d) Has the closest framerate if g_mode_prefer_exact is 1.
 	 */
 	display_mode_t best_mode;
 	unsigned best_rating = 0;
@@ -866,7 +872,8 @@ int afrd_init ()
 {
 	/* load config if not loaded already */
 	if (!g_cfg && (load_config (g_config) != 0)) {
-		fprintf (stderr, "%s: failed to load config file\n", g_program);
+		fprintf (stderr, "%s: failed to load config file %s\n",
+			g_program, g_config);
 		return -1;
 	}
 
@@ -927,6 +934,7 @@ void afrd_fini ()
 
 	uevent_filter_fini (&g_filter_frhint);
 	uevent_filter_fini (&g_filter_vdec);
+	uevent_filter_fini (&g_filter_hdmi);
 	strlist_free (&g_vdec_blacklist);
 
 	display_modes_fini ();

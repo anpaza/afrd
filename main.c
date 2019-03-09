@@ -60,7 +60,7 @@ void trace_log (const char *logfn)
 {
 	g_logh = open (logfn, O_WRONLY | O_APPEND | O_CLOEXEC | O_CREAT | O_SYNC, 0644);
 	if (g_logh < 0) {
-		trace (0, "Failed to open log file %s", logfn);
+		fprintf (stderr, "%s: failed to open log file %s", g_program, logfn);
 		return;
 	}
 
@@ -120,11 +120,7 @@ int load_config (const char *config)
 
 static void daemonize ()
 {
-	pid_t pid;
-
-	g_verbose = 0;
-
-	pid = fork ();
+	pid_t pid = fork ();
 	if (pid < 0) {
 		fprintf (stderr, "%s: can't demonize, aborting\n", g_program);
 		exit (-1);
