@@ -178,7 +178,7 @@ The following parameters are recognized by AFRD:
     supported modes. You can put a list of additional supported video modes
     that aren't listed
 
-* *vdec.status*
+* *vdec.sysfs*
     This points to sysfs attribute containing the status of the video decoder.
     Usually this is /sys/class/vdec/vdec_status.
 

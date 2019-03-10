@@ -1,0 +1,29 @@
+#!/bin/sh
+
+PROG="$0"
+VERSION=`sed ../main.c -ne '/const char \*g_version/{' -e 's/^.*= *"//' -e 's/".*$//' -e p -e '}'`
+
+if test -z "$VERSION" ; then
+	echo "$PROG: failed to get afrd version number"
+	exit 1
+fi
+
+copy() {
+	SRC="$1"
+	DST="$2"
+	if ! test -f "$SRC" ; then
+		echo "$PROG: no required file $SRC"
+		exit 1
+	fi
+	test -d "$DST" || mkdir -p "$DST"
+	cp -a "$SRC" "$DST"
+}
+
+copy ../libs/armeabi-v7a/afrd files/armeabi-v7a
+copy ../libs/arm64-v8a/afrd files/arm64-v8a
+copy ../config/afrd-android7-.ini files/config
+copy ../config/afrd-android8+.ini files/config
+
+../../afck/tools/upd-maker -o UPDATE-afrd-$VERSION.zip -s files/updater-script \
+	files/50-afrd files/afrd.perm \
+	files/armeabi-v7a files/arm64-v8a files/config

@@ -73,6 +73,11 @@ static mstime_t g_ost_hdmi;
 static mstime_t g_ost_blackout;
 
 /**
+ * Timer for periodic config timestamp checks
+ */
+static mstime_t g_ost_config;
+
+/**
  * What mode should we set when g_ost_switch expires
  */
 static struct
@@ -685,11 +690,11 @@ static void handle_uevents ()
 {
 	for (;;)
 	{
-		char msg [1024];
+		char msg [4096];
 		struct sockaddr_nl addr;
 		struct iovec iovec = {
 			.iov_base = &msg,
-			.iov_len = sizeof(msg),
+			.iov_len = sizeof (msg) - 1,
 		};
 		union {
 			struct cmsghdr cmsghdr;
@@ -724,6 +729,7 @@ static void handle_uevents ()
 		if (!ucred || ucred->pid != 0 || addr.nl_pid != 0)
 			continue;
 
+		msg [size] = 0;
 		handle_uevent (msg, size);
 	}
 }
@@ -782,6 +788,29 @@ static time_t mtime (const char *fn)
 	return 0;
 }
 
+static void mstime_adjust (int delta, mstime_t *ost)
+{
+	if (mstime_enabled (ost))
+		*ost += delta;
+}
+
+static void safe_mstime_update (int to)
+{
+	int old_mstime = g_mstime;
+	mstime_update ();
+
+	// time difference is substantially larger than timeout?
+	int delta_mstime = g_mstime - old_mstime;
+	if ((delta_mstime < 0) || (delta_mstime > to + 1000)) {
+		delta_mstime -= to;
+		trace (1, "System timer changed, adjusting all timers by %d ms\n", delta_mstime);
+		mstime_adjust (delta_mstime, &g_ost_switch);
+		mstime_adjust (delta_mstime, &g_ost_hdmi);
+		mstime_adjust (delta_mstime, &g_ost_blackout);
+		mstime_adjust (delta_mstime, &g_ost_config);
+	}
+}
+
 int afrd_run ()
 {
 	if (g_uevent_sock == -1)
@@ -801,32 +830,38 @@ int afrd_run ()
 	mstime_disable (&g_ost_blackout);
 
 	// Check config timestamp timer
-	mstime_t ost_config;
-	mstime_arm (&ost_config, 1);
+	mstime_arm (&g_ost_config, 1);
 	time_t config_mtime = mtime (g_config);
 
 	while (!g_shutdown) {
-		mstime_update ();
+		// update the millisecond timer
+		safe_mstime_update (0);
 
 		int to = mstime_left (&g_ost_switch);
 		to = min_time (to, &g_ost_hdmi);
 		to = min_time (to, &g_ost_blackout);
-		to = min_time (to, &ost_config);
+		to = min_time (to, &g_ost_config);
+
+		// this should never happen as g_ost_config is always active, but
+		// anyway don't allow to sleep indefinitely 'cause we can't detect
+		// system time changes
+		if (to < 0)
+			to = 60000;
 
 		// wait until either a new uevent comes
 		// or the delayed mode switch timer expires
 		pfd.revents = 0;
 		int rc = poll (&pfd, 1, to);
 
-		// update the millisecond timer
-		mstime_update ();
+		// catch system time change events, this breaks our timers
+		safe_mstime_update (to);
 
 		if (rc > 0)
 			if (pfd.revents & POLLIN)
 				handle_uevents ();
 
 		// disable screen at start of playback
-		if (mstime_expired (&g_ost_blackout))
+		if (mstime_expired (&g_ost_blackout) && !g_state.restore)
 			blackout ();
 
 		// if mode switch timer expired, switch the mode finally
@@ -842,8 +877,8 @@ int afrd_run ()
 		}
 
 		// check config timestamp and reload it if so
-		if (mstime_expired (&ost_config)) {
-			mstime_arm (&ost_config, CONFIG_CHECK_PERIOD);
+		if (mstime_expired (&g_ost_config)) {
+			mstime_arm (&g_ost_config, CONFIG_CHECK_PERIOD);
 			// if we're doing other work, don't hog the CPU
 			if (!mstime_enabled (&g_ost_blackout) &&
 			    !mstime_enabled (&g_ost_switch) &&
@@ -872,8 +907,7 @@ int afrd_init ()
 {
 	/* load config if not loaded already */
 	if (!g_cfg && (load_config (g_config) != 0)) {
-		fprintf (stderr, "%s: failed to load config file %s\n",
-			g_program, g_config);
+		trace (0, "failed to load config file %s\n", g_config);
 		return -1;
 	}
 
@@ -884,6 +918,7 @@ int afrd_init ()
 		trace_log (log);
 
 	trace (1, "afrd v%s built at %s is initializing\n", g_version, g_bdate);
+	trace (1, "\tactive config file: %s\n", g_config);
 
 	g_enabled = (cfg_get_int ("enable", 1) != 0);
 	g_settings_enable = cfg_get_str ("settings.enable", NULL);
@@ -915,7 +950,7 @@ int afrd_init ()
 	uevent_filter_load (&g_filter_hdmi, "uevent.filter.hdmi");
 
 	if (!uevent_open (16 * 1024)) {
-		fprintf (stderr, "%s: failed to open uevent socket", g_program);
+		trace (0, "failed to open uevent socket");
 		return EPERM;
 	}
 
