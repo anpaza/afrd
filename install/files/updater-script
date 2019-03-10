@@ -10,21 +10,22 @@ if ! test -d /system/etc/init.d ; then
 	exit 1
 fi
 
-# Let's suppose kernel >= 4 means Android 8 and up
-KVER=`uname -r | cut -c1`
-if test "$KVER" == "3" ; then
-	echo "Kernel version 3.x detected, supposing android 6 or 7"
-	package_extract_file afrd-android7-.ini /system/etc/afrd.ini
+if test -f /sys/class/switch/hdmi/cable.0/state ; then
+	ui_print "Kernel version 4.x detected, supposing Android 8 and up"
+	package_extract_file config/afrd-android8+.ini /system/etc/afrd.ini
+elif test -f /sys/class/switch/hdmi/state ; then
+	ui_print "Kernel version 3.x detected, supposing Android 6 or 7"
+	package_extract_file config/afrd-android7-.ini /system/etc/afrd.ini
 else
-	echo "Kernel version $KVER.x detected, supposing android 8 and up"
-	package_extract_file afrd-android8+.ini /system/etc/afrd.ini
+	ui_print "Unknown kernel type, failing installation"
+	exit 1
 fi
 
 ARCH=`getprop ro.product.cpu.abi`
 ui_print "Installing binaries for arch $ARCH"
 
 package_extract_file 50-afrd /system/etc/init.d
-package_extract_file $ARC/afrd /system/xbin
+package_extract_file $ARCH/afrd /system/xbin
 
 ui_print "Setting up access rights, modes and contexts..."
 package_extract_file afrd.perm $TMP

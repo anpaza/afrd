@@ -179,8 +179,8 @@ The following parameters are recognized by AFRD:
     that aren't listed
 
 * *vdec.sysfs*
-    This points to sysfs attribute containing the status of the video decoder.
-    Usually this is /sys/class/vdec/vdec_status.
+    This points to sysfs directory containing the status of the video decoder.
+    afrd will try to use attributes vdec_status, dump_vdec_blocks, dump_vdec_chunks.
 
 * *uevent.filter.frhint*
 * *uevent.filter.vdec*
