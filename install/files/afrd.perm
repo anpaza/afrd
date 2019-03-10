@@ -1,3 +1,2 @@
 /system/xbin/afrd		0	0	0755	u:object_r:system_file:s0
-/system/etc/init.d/50-afrd	0	0	0755	u:object_r:system_file:s0
 /system/etc/afrd.ini		0	0	0644	u:object_r:system_file:s0
