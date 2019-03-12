@@ -16,13 +16,13 @@ static bool append_rex (uevent_filter_t *uevf, char *str)
 	if (!eq)
 		return false;
 
-	trace (2, "\t+ %s\n", str);
-
 	strip_trailing_spaces (eq, str);
 	eq++;
 	eq += strspn (eq, spaces);
 
 	strip_trailing_spaces (strchr (eq, 0), eq);
+
+	trace (2, "\t+ %s=(%s)\n", str, eq);
 
 	uevf->attr [uevf->size] = str;
 	if (regcomp (&uevf->rex [uevf->size], eq, REG_EXTENDED) != 0) {
