@@ -40,19 +40,19 @@ static bool mode_parse (char *desc, display_mode_t *mode)
 				  default: mode->name [0] = 0; return false;
 			}
 		}
-	}
 
-	char c = *desc++;
-	// according to kernel sources, 'fp' means same as 'p'
-	if (c == 'f')
 		c = *desc++;
-	if (c == 'i')
-		mode->interlaced = true;
-	else if (c == 'p')
-		mode->interlaced = false;
-	else {
-		mode->name [0] = 0;
-		return false;
+		// according to kernel sources, 'fp' means same as 'p'
+		if (c == 'f')
+			c = *desc++;
+		if (c == 'i')
+			mode->interlaced = true;
+		else if (c == 'p')
+			mode->interlaced = false;
+		else {
+			mode->name [0] = 0;
+			return false;
+		}
 	}
 
 	mode->framerate = parse_int (&desc);
