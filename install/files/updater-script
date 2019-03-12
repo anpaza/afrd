@@ -1,6 +1,6 @@
 #!/sbin/sh
 
-ui_print "Installing --<< Auto FrameRate Daemon >>--"
+ui_print "--<< Auto FrameRate Daemon installer >>--"
 
 mnt system
 
@@ -9,6 +9,7 @@ test -d $INITD || INITD=/system/su.d
 if ! test -d $INITD ; then
 	ui_print "Your system is not configured for init.d support!"
 	ui_print "Please configure your system before installing afrd!"
+	ui_print "FAILING INSTALLATION"
 	exit 1
 fi
 
@@ -23,16 +24,21 @@ else
 	exit 1
 fi
 
-ARCH=`getprop ro.product.cpu.abi`
-ui_print "Installing binaries for arch $ARCH"
+if test -f /system/xbin/afrd ; then
+	ui_print "UNINSTALLING existing afrd"
+	rm -f /system/xbin/afrd /system/etc/afrd.ini $INITD/50-afrd
+else
+	ARCH=`getprop ro.product.cpu.abi`
+	ui_print "INSTALLING binaries for arch $ARCH"
 
-ui_print "Installing autostart script to $INITD"
-package_extract_file 50-afrd $INITD
-package_extract_file $ARCH/afrd /system/xbin
+	ui_print "INSTALLING autostart script to $INITD"
+	package_extract_file 50-afrd $INITD
+	package_extract_file $ARCH/afrd /system/xbin
 
-ui_print "Setting up access rights, modes and contexts..."
-package_extract_file afrd.perm $TMP
-perm $TMP/afrd.perm
-set_perm 0 0 0755 u:object_r:system_file:s0 $INITD/50-afrd
+	ui_print "SETTING UP access rights, modes and contexts..."
+	package_extract_file afrd.perm $TMP
+	perm $TMP/afrd.perm
+	set_perm 0 0 0755 u:object_r:system_file:s0 $INITD/50-afrd
+fi
 
 ui_print "Done"
