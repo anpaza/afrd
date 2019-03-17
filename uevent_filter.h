@@ -9,6 +9,8 @@ typedef struct
 	const char *attr [16];
 	// Regular expressions for attribute values
 	regex_t rex [16];
+	// Regex value
+	const char *rexval [16];
 	// Filter name
 	char *name;
 	// Original filter string, modified for our needs

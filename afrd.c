@@ -971,6 +971,14 @@ void afrd_fini ()
 	uevent_filter_fini (&g_filter_vdec);
 	uevent_filter_fini (&g_filter_hdmi);
 	strlist_free (&g_vdec_blacklist);
+	g_mode_blacklist_rates_size = 0;
+
+	g_enabled = false;
+	g_settings_enable = NULL;
+	g_hdmi_dev = NULL;
+	g_hdmi_state = NULL;
+	g_mode_path = NULL;
+	g_vdec_sysfs = NULL;
 
 	display_modes_fini ();
 	colorspace_fini ();
@@ -981,4 +989,5 @@ void afrd_fini ()
 	}
 
 	settings_fini ();
+	trace_log (NULL);
 }

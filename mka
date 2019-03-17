@@ -1,4 +1,10 @@
 #!/bin/sh
 
 export NDK=/usr/local/app/Android/SDK/ndk-bundle
-$NDK/ndk-build $*
+$NDK/ndk-build $* || exit $?
+
+ANDRAW=android/app/src/main/res/raw
+for afrd in libs/*/afrd ; do
+	arch=$(basename $(dirname $afrd) | tr '-' '_')
+	cp $afrd $ANDRAW/afrd_$arch
+done

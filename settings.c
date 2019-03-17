@@ -31,6 +31,8 @@ void settings_init ()
 
 void settings_fini ()
 {
+	g_settings_cmd = NULL;
+
 	if (stor_size) {
 		for (int i = 0; i < stor_size; i++)
 			free (stor [i]);

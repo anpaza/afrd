@@ -17,12 +17,12 @@
 
 #include "afrd.h"
 
-const char *g_version = "0.2.4";
+const char *g_version = "0.2.5";
 const char *g_bdate = BDATE;
 const char *g_config = "/etc/afrd.ini";
 const char *g_pidfile =
 #ifdef ANDROID
-	// android has no standard directory for pid files...
+	// android has no standard directory for PID files...
 	// so use /dev/pid/ on tmpfs
 	"/dev/run/afrd.pid";
 #else
@@ -58,13 +58,19 @@ static void show_help (char *const *argv)
 
 void trace_log (const char *logfn)
 {
+	if (g_logh >= 0) {
+		close (g_logh);
+		g_logh = -1;
+	}
+
+	if (!logfn)
+		return;
+
 	g_logh = open (logfn, O_WRONLY | O_APPEND | O_CLOEXEC | O_CREAT | O_SYNC, 0644);
 	if (g_logh < 0) {
 		fprintf (stderr, "%s: failed to open log file %s", g_program, logfn);
 		return;
 	}
-
-	g_verbose = 3;
 }
 
 void trace (int level, const char *format, ...)
@@ -73,7 +79,7 @@ void trace (int level, const char *format, ...)
 	struct tm tm;
 	struct timeval tv;
 
-	if (level > g_verbose)
+	if ((g_logh < 0) && (level > g_verbose))
 		return;
 
 	if (gettimeofday (&tv, NULL) < 0)
@@ -118,9 +124,64 @@ int load_config (const char *config)
 	return 0;
 }
 
+// returns either the PID of running daemon, or
+// -1 if PID file does not exist, or -2 if it
+// exists but the contents are wrong.
+static pid_t daemon_pid ()
+{
+	int h;
+	pid_t pid = -1;
+
+	h = open (g_pidfile, O_RDONLY);
+	if (h >= 0) {
+		int n;
+		char tmp [11];
+
+		pid = -2;
+		n = read (h, tmp, sizeof (tmp) - 1);
+		if (n > 0) {
+			tmp [n] = 0;
+			pid = strtoul (tmp, NULL, 0);
+			// check if PID is valid
+			if ((pid < 1) || kill (pid, 0))
+				pid = -2;
+		}
+
+		close (h);
+	}
+
+	return pid;
+}
+
+static int kill_daemon ()
+{
+	pid_t pid = daemon_pid ();
+	if (pid == -1) {
+		fprintf (stderr, "%s: failed to read PID from file '%s'\n",
+			g_program, g_pidfile);
+	} else if (pid == -2) {
+		unlink (g_pidfile);
+		fprintf (stderr, "%s: PID file exists, but daemon is dead\n",
+			g_program);
+	} else if (kill (pid, SIGINT)) {
+		fprintf (stderr, "%s: failed to kill daemon PID %d\n",
+			g_program, pid);
+	} else
+		return EXIT_SUCCESS;
+
+	return EXIT_FAILURE;
+}
+
 static void daemonize ()
 {
-	pid_t pid = fork ();
+	pid_t pid = daemon_pid ();
+	if (pid > 0) {
+		fprintf (stderr, "%s: daemon is already running with PID %d\n",
+			g_program, pid);
+		exit (-1);
+	}
+
+	pid = fork ();
 	if (pid < 0) {
 		fprintf (stderr, "%s: can't demonize, aborting\n", g_program);
 		exit (-1);
@@ -140,7 +201,7 @@ static void daemonize ()
 			write (h, tmp, snprintf (tmp, sizeof (tmp), "%d", pid));
 			close (h);
 		} else
-			fprintf (stderr, "%s: failed to write pid file '%s'\n",
+			fprintf (stderr, "%s: failed to write PID file '%s'\n",
 				g_program, g_pidfile);
 
 		/* successfuly daemonized */
@@ -151,38 +212,6 @@ static void daemonize ()
 	close (0);
 	close (1);
 	close (2);
-}
-
-static int kill_daemon ()
-{
-	char tmp [11];
-	int h, n, ok = -1;
-	pid_t pid = -1;
-
-	h = open (g_pidfile, O_RDONLY);
-	if (h < 0) {
-		fprintf (stderr, "%s: failed to read pid from file '%s'\n",
-			g_program, g_pidfile);
-		return -1;
-	}
-
-	n = read (h, tmp, sizeof (tmp) - 1);
-	if (n > 0) {
-		tmp [n] = 0;
-		pid = strtoul (tmp, NULL, 0);
-		if (pid > 1)
-			ok = kill (pid, SIGINT);
-	}
-
-	close (h);
-
-	if (ok != 0) {
-		unlink (g_pidfile);
-		fprintf (stderr, "%s: failed to kill daemon pid %d\n",
-			g_program, pid);
-	}
-
-	return ok;
 }
 
 int main (int argc, char *const *argv)
@@ -236,6 +265,7 @@ int main (int argc, char *const *argv)
 	signal (SIGINT,  signal_handler);
 	signal (SIGQUIT, signal_handler);
 	signal (SIGTERM, signal_handler);
+	signal (SIGHUP, SIG_IGN);
 
 	for (;;) {
 		if ((ret = afrd_init ()) < 0)

@@ -25,6 +25,7 @@ static bool append_rex (uevent_filter_t *uevf, char *str)
 	trace (2, "\t+ %s=(%s)\n", str, eq);
 
 	uevf->attr [uevf->size] = str;
+	uevf->rexval [uevf->size] = eq;
 	if (regcomp (&uevf->rex [uevf->size], eq, REG_EXTENDED) != 0) {
 		trace (1, "\t  ignoring bad regex: %s\n", eq);
 		return false;
@@ -88,6 +89,7 @@ bool uevent_filter_match (uevent_filter_t *uevf, const char *attr, const char *v
 	for (int i = 0; i < uevf->size; i++)
 		if (strcmp (uevf->attr [i], attr) == 0) {
 			regmatch_t match [1];
+/*@*/trace (4, "\t  %s: matching [%s] against [%s]\n", uevf->name, value, uevf->rexval [i]);
 			if (regexec (&uevf->rex [i], value, 1, match, 0) == REG_NOMATCH)
 				continue;
 			// must match whole line
