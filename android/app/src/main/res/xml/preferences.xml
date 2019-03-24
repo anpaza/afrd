@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+                  android:title="@string/prefs_title">
+
+    <SwitchPreference android:defaultValue="1" android:key="enable" android:summary="@string/prefsum_enable"
+                      android:title="@string/prefs_enable"/>
+    <SwitchPreference android:defaultValue="0" android:key="mode_prefer_exact"
+                      android:summary="@string/prefsum_mode_prefer_exact"
+                      android:title="@string/prefs_mode_prefer_exact"/>
+    <SwitchPreference android:defaultValue="0" android:key="log_enable"
+                      android:summary="@string/prefsum_log_enable"
+                      android:title="@string/prefs_log_enable"/>
+    <ListPreference android:defaultValue="0" android:entries="@array/mode_use_fract"
+                    android:entryValues="@array/mode_use_fract_value" android:key="mode_use_fract"
+                    android:summary="@string/prefsum_mode_use_fract"
+                    android:title="@string/prefs_mode_use_fract"/>
+    <PreferenceCategory android:title="@string/prefs_group_timings">
+        <EditTextPreference android:defaultValue="300" android:key="switch_delay_on"
+                            android:maxLength="4" android:numeric="integer" android:selectAllOnFocus="true"
+                            android:singleLine="true" android:summary="@string/prefsum_switch_delay_on"
+                            android:title="@string/prefs_switch_delay_on"/>
+        <EditTextPreference android:defaultValue="10000" android:key="switch_delay_off"
+                            android:maxLength="4" android:numeric="integer" android:selectAllOnFocus="true"
+                            android:singleLine="true" android:summary="@string/prefsum_switch_delay_off"
+                            android:title="@string/prefs_switch_delay_off"/>
+        <EditTextPreference android:defaultValue="100" android:key="switch_delay_retry"
+                            android:maxLength="4" android:numeric="integer" android:selectAllOnFocus="true"
+                            android:singleLine="true" android:summary="@string/prefsum_switch_delay_retry"
+                            android:title="@string/prefs_switch_delay_retry"/>
+        <EditTextPreference android:defaultValue="100" android:key="switch_timeout"
+                            android:maxLength="4" android:numeric="integer" android:selectAllOnFocus="true"
+                            android:singleLine="true" android:summary="@string/prefsum_switch_timeout"
+                            android:title="@string/prefs_switch_timeout"/>
+        <EditTextPreference android:defaultValue="100" android:key="switch_blackout"
+                            android:maxLength="4" android:numeric="integer" android:selectAllOnFocus="true"
+                            android:singleLine="true" android:summary="@string/prefsum_switch_blackout"
+                            android:title="@string/prefs_switch_blackout"/>
+    </PreferenceCategory>
+    <PreferenceScreen android:fragment="ru.cobra.zap.afrdctl.SettingsFragment"
+                      android:key="advanced" android:title="@string/settings_advanced">
+        <EditTextPreference android:key="mode_blacklist_rates" android:selectAllOnFocus="true"
+                            android:singleLine="true"
+                            android:summary="@string/prefsum_mode_blacklist_rates"
+                            android:title="@string/prefs_mode_blacklist_rates"/>
+        <EditTextPreference android:key="mode_extra" android:selectAllOnFocus="true"
+                            android:singleLine="true" android:summary="@string/prefsum_mode_extra"
+                            android:title="@string/prefs_mode_extra"/>
+        <EditTextPreference android:defaultValue="2160p[4-9].*=420 .*=444" android:key="cs_select"
+                            android:selectAllOnFocus="true" android:singleLine="true"
+                            android:summary="@string/prefsum_cs_select"
+                            android:title="@string/prefs_cs_select"/>
+        <EditTextPreference android:defaultValue="/data/local/afrd.log" android:key="log_file"
+                            android:selectAllOnFocus="true" android:singleLine="true"
+                            android:summary="@string/prefsum_log_file"
+                            android:title="@string/prefs_log_file"/>
+        <EditTextPreference android:key="settings_cmd" android:selectAllOnFocus="true"
+                            android:singleLine="true" android:summary="@string/prefsum_settings_cmd"
+                            android:title="@string/prefs_settings_cmd"/>
+        <EditTextPreference android:defaultValue="key_hdmi_selfadaption"
+                            android:key="settings_enable" android:selectAllOnFocus="true"
+                            android:singleLine="true" android:summary="@string/prefsum_settings_enable"
+                            android:title="@string/prefs_settings_enable"/>
+    </PreferenceScreen>
+</PreferenceScreen>

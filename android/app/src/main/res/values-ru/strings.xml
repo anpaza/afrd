@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="navigation_drawer_open">Открыть панель навигации</string>
+    <string name="nav_header_title">Демон Автоматической Подборки Частоты</string>
+    <string name="nav_header_desc">Выберите задачу</string>
+    <string name="action_settings">Настройки</string>
+    <string name="navigation_drawer_close">Закрыть панель навигации</string>
+    <string name="nav_settings">Настроить</string>
+    <string name="nav_log">Журнал</string>
+    <string name="nav_status">Состояние</string>
+    <string name="ok">Готово</string>
+    <string name="msg_title_critical_error">Критическая ошибка</string>
+    <string name="l_off">Выкл</string>
+    <string name="l_on">Вкл</string>
+    <string name="arch_not_supported">AFRd не скомпилирован для архитектуры текущего процессора
+    </string>
+    <string name="failed_copy_raw">Не удалось скопировать файл ресурсов в %s</string>
+    <string name="prefs_enable">Включить Автоматический Подбор Частоты</string>
+    <string name="prefsum_enable">Разрешить или запретить Автоматический Подбор Частоты</string>
+    <string name="prefs_log_enable">Включить журнал</string>
+    <string name="prefsum_log_enable">Вести подробный журнал деятельности демона Авто Подбора
+        Частоты
+    </string>
+    <string name="prefs_log_file">Файл журнала</string>
+    <string name="prefsum_log_file">Полный путь к файлу журнала (обычно /data/local/&#8230;)
+    </string>
+    <string name="prefs_settings_cmd">Команда настроек Android</string>
+    <string name="prefsum_settings_cmd">Имя команды для получения настроек Android (обычно
+        /system/bin/settings)
+    </string>
+    <string name="prefs_settings_enable">Настройка Android для Авто Подбора Частоты</string>
+    <string name="prefsum_settings_enable">Название настройки Android, включающая Авто Подбор
+        Частоты, обычно key_hdmi_selfadaption
+    </string>
+    <string name="prefs_mode_prefer_exact">Предпочитать точное соответствие частоты</string>
+    <string name="prefsum_mode_prefer_exact">Выбор между 50/25Гц при частоте 25 кадр/сек, и 60/30Гц
+        при частоте 30 кадр/сек
+    </string>
+    <string name="prefs_mode_use_fract">Политика использования дробных частот</string>
+    <string name="prefsum_mode_use_fract">Включить использование дробных частот (23.976, 29.97,
+        59.94Гц), целочисленных, или всех
+    </string>
+    <string name="prefs_mode_blacklist_rates">Список запрещённых частот</string>
+    <string name="prefsum_mode_blacklist_rates">Список частот вертикальной развёртки, которые не
+        следует использовать, например: 23.976 25
+    </string>
+    <string name="prefs_mode_extra">Дополнительные видеорежимы</string>
+    <string name="prefsum_mode_extra">Если Ваш ТВ предоставляет неполную информацию EDID, можно
+        ввести дополнительные поддерживаемые видеорежимы, например: 1080p25hz и т.п.
+    </string>
+    <string name="prefs_cs_select">Правила выбора цветового пространства</string>
+    <string name="prefsum_cs_select">Правила для выбора цветового пространства по имени
+        видеорежима
+    </string>
+    <string name="prefs_switch_delay_on">Задержка ВКЛ</string>
+    <string name="prefsum_switch_delay_on">Задержка в мс перед запуском определения частоты видео
+    </string>
+    <string name="prefs_switch_delay_off">Задержка ВЫКЛ</string>
+    <string name="prefsum_switch_delay_off">Задержка в мс перед восстановлением исходной частоты
+    </string>
+    <string name="prefs_switch_delay_retry">Задержка повторного определения частоты кадров</string>
+    <string name="prefsum_switch_delay_retry">Задержка перед повторным определением частоты кадров
+        видео, в случае неудачи
+    </string>
+    <string name="prefs_switch_timeout">Тайм-аут определения частоты кадров</string>
+    <string name="prefsum_switch_timeout">Интервал, через которое автоопределение частоты прекращает
+        работу
+    </string>
+    <string name="prefs_switch_blackout">Задержка выключения экрана</string>
+    <string name="prefsum_switch_blackout">Задержка в мс для выключения экрана сразу после старта
+        видео, задайте 0 чтобы не выключать экран
+    </string>
+
+    <string name="afrd_requires_su">AFRd требует прав Администратора для работы</string>
+    <string name="l_afrd_version">Версия демона Автоматического Подбора Частоты</string>
+    <string name="l_afrd_enabled">Демон включён</string>
+    <string name="only_amlogic">Это приложение поддерживает только устройства на базе процессоров
+        AmLogic.\\n\\nК сожалению, анализ Вашей системы не показал его наличие.\\n\\nПрограмма будет
+        закрыта.
+    </string>
+    <string name="l_current_hz">Текущая частота вертикальной развёртки</string>
+    <string name="l_blackened">Экран затемнён</string>
+    <string name="l_switched">Частота вертикальной развёртки адаптирована под видео</string>
+    <string name="l_original_hz">Исходная частота вертикальной развёртки</string>
+    <string name="hz">%d.%02d Гц</string>
+    <string name="l_afrd_bdate">Дата сборки</string>
+    <string name="l_yes">Да</string>
+    <string name="l_no">Нет</string>
+    <string name="mode_use_fract_auto">Авто (использовать наиболее подходящий)</string>
+    <string name="mode_use_fract_use">Предпочитать дробные частоты</string>
+    <string name="mode_use_fract_int">Предпочитать целые частоты</string>
+    <string name="settings_advanced">Настройки для опытных пользователей</string>
+    <string name="notif_start_afrd">Включить Автоматический Подбор Частоты</string>
+    <string name="notif_enabled">AFRd включён</string>
+    <string name="notif_disabled">AFRd отключён</string>
+    <string name="notif_hz">Частота развёртки: %s, исходная: %s</string>
+    <string name="notif_stop_afrd">Отключить Автоматический Подбор Частоты</string>
+    <string name="channel_description">Управление текущим состоянием AFRd</string>
+    <string name="error_opening_log">Не удалось открыть файл журнала; возможно, он ещё не
+        существует.
+    </string>
+    <string name="l_log_enable">Включить ведение журналира демоном</string>
+    <string name="no_signal">НЕТ СИГНАЛА ОТ AFRD</string>
+    <string name="menu_status">Состояние</string>
+    <string name="menu_log">Журнал</string>
+    <string name="menu_settings">Настройки</string>
+    <string name="menu_desc_status">Посмотреть текущее состояние</string>
+    <string name="menu_desc_log">Просмотр файла журнала</string>
+    <string name="menu_desc_settings">Изменить режим работы демона</string>
+    <string name="press_back_again">Нажмите \'Назад\' ещё раз для выхода</string>
+    <string name="prefs_reset">Сброс настроек пользователя</string>
+    <string name="prefs_apply">Применить настройки</string>
+    <string name="prefs_title">Настройки AFRd</string>
+    <string name="log_clear">Очистить файл журнала</string>
+    <string name="status_title">Состояние AFRd</string>
+    <string name="msg_reset_prefs_failed">Не удалось сбросить настройки</string>
+    <string name="msg_apply_prefs_failed">Не удалось применить настройки</string>
+    <string name="prefs_group_timings">Задержки переключения</string>
+    <string name="msg_reset_prefs_ok">Настройки AFRd были сброшены</string>
+    <string name="msg_apply_prefs_ok">Настройки AFRd изменены</string>
+    <string name="log_title">Файл журнала: %s %s</string>
+    <string name="log_is_off">ЖУРНАЛ ВЫКЛЮЧЕН</string>
+    <string name="notif_channel">Состояние AFRd</string>
+</resources>

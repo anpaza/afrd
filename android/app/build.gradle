@@ -1,0 +1,41 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 27
+    defaultConfig {
+        applicationId 'ru.cobra.zap.afrd'
+        minSdkVersion 23
+        compileSdkVersion 27
+        versionCode 1
+        versionName '0.2.5'
+        targetSdkVersion 28
+        versionNameSuffix 'alpha'
+        project.ext.set ("archivesBaseName", "${applicationId}-${versionName}${versionNameSuffix}".toString ());
+    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    buildToolsVersion '28.0.3'
+    productFlavors {
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'eu.chainfire:libsuperuser:1.0.0.+'
+}
+
+android {
+    tasks.withType(JavaCompile) {
+        configure(options) {
+            options.encoding = 'UTF-8'
+            options.debug = true
+            options.failOnError = true
+            options.warnings = true
+            options.compilerArgs << '-Xlint:deprecation' << '-Xlint:unchecked'
+        }
+    }
+}

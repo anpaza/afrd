@@ -1,0 +1,114 @@
+<resources>
+    <string name="app_name" translatable="false">AFRd</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="nav_header_title">Automatic Frame Rate daemon</string>
+    <string name="nav_header_subtitle" translatable="false">zapparello@ya.ru</string>
+    <string name="nav_header_desc">Choose your task</string>
+    <string name="action_settings">Settings</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_log">Log</string>
+    <string name="nav_status">Status</string>
+    <string name="ok">Ok</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="msg_title_critical_error">Critical error</string>
+    <string name="arch_not_supported">This CPU architecture is not supported by afrd</string>
+    <string name="only_amlogic">"This application supports only AmLogic SoC based
+        devices.\\n\\nInspection of your system doesn't reveal your device is one of these,
+        sorry.\\n\\nThe program will now close. "
+    </string>
+    <string name="failed_copy_raw">Failed to copy resource file to %s</string>
+    <string name="prefs_enable">Enable Auto Frame Rate</string>
+    <string name="prefsum_enable">Turn Auto Frame Rate on or off</string>
+    <string name="prefs_log_file">Log file name</string>
+    <string name="prefsum_log_file">Full path to log file (/data/local/&#8230; recommended)</string>
+    <string name="prefs_log_enable">Enable logging</string>
+    <string name="prefsum_log_enable">Auto Frame Rate daemon will register its activity in a log file</string>
+    <string name="prefs_settings_cmd">Android system settings command</string>
+    <string name="prefsum_settings_cmd">The command used to query Android system settings. Set to empty
+        to disable usage of Android settings.
+    </string>
+    <string name="prefs_settings_enable">Android setting used to enable AutoFrameRate</string>
+    <string name="prefsum_settings_enable">The name of the Android setting used to enable AutoFrameRate, usually key_hdmi_selfadaption</string>
+    <string name="prefs_mode_prefer_exact">Prefer exact refresh rates</string>
+    <string name="prefsum_mode_prefer_exact">Prefer either 50/25Hz for 25fps movies and 60/30Hz for 30fps movies</string>
+    <string name="prefs_mode_use_fract">Fractional refresh rate policy</string>
+    <string name="prefsum_mode_use_fract">Tell AFRd to use fractional (23.976, 29.97, 59.94Hz) or integer refresh rates, or both</string>
+    <string name="prefs_mode_blacklist_rates">Blacklisted refresh rates</string>
+    <string name="prefsum_mode_blacklist_rates">Enter numeric refresh rates separated by spacs, e.g. 23.976 25</string>
+    <string name="prefs_mode_extra">Extra supported video modes</string>
+    <string name="prefsum_mode_extra">Additional video modes if your TV provides incomplete EDID
+        info (such as 1080p25hz etc)
+    </string>
+    <string name="prefs_cs_select">Color space selection rules</string>
+    <string name="prefsum_cs_select">The rules to select color space depending on video mode name
+    </string>
+    <string name="prefs_switch_delay_on">ON switch delay</string>
+    <string name="prefsum_switch_delay_on">The delay in ms to wait after movie starts before detecting
+        movie framerate
+    </string>
+    <string name="prefs_switch_delay_off">OFF switch delay</string>
+    <string name="prefsum_switch_delay_off">The delay in ms to wait before restoring original refresh
+        rate after movie ends
+    </string>
+    <string name="prefs_switch_delay_retry">Detect FPS retry delay</string>
+    <string name="prefsum_switch_delay_retry">The delay between retries if movie frame rate cannot be
+        determined
+    </string>
+    <string name="prefs_switch_timeout">Detect FPS timeout</string>
+    <string name="prefsum_switch_timeout">The time to give up if movie framerate cannot be determined
+    </string>
+    <string name="prefs_switch_blackout">Screen off delay</string>
+    <string name="prefsum_switch_blackout">The delay in ms to turn display off after movie starts
+    </string>
+
+    <string name="afrd_requires_su">AFRd requires Superuser privileges to run</string>
+    <string name="l_afrd_version">Auto Frame Rate daemon version</string>
+    <string name="l_afrd_enabled">Daemon is enabled</string>
+    <string name="l_off">Off</string>
+    <string name="l_on">On</string>
+    <string name="l_switched">Display refresh rate is modified to match movie</string>
+    <string name="l_blackened">Display is blackened</string>
+    <string name="l_current_hz">Current display refresh rate</string>
+    <string name="l_original_hz">Original display refresh rate</string>
+    <string name="hz">%d.%02d Hz</string>
+    <string name="l_afrd_bdate">Build date</string>
+    <string name="l_yes">Yes</string>
+    <string name="l_no">No</string>
+    <string name="no_signal">NO SIGNAL FROM AFRD</string>
+    <string name="l_log_enable">Enable logging in daemon</string>
+    <string name="error_opening_log">Failed to open log file; most likely it does not exist yet.
+    </string>
+    <string name="channel_name" translatable="false">AFRd</string>
+    <string name="channel_description">Show and manage current AFRd status</string>
+    <string name="notif_enabled">AFRd is enabled</string>
+    <string name="notif_disabled">AFRd is disabled</string>
+    <string name="notif_hz">Refresh rate: %s, original: %s</string>
+    <string name="notif_stop_afrd">Disable Automatic Frame Rate</string>
+    <string name="notif_start_afrd">Enable Automatic Frame Rate</string>
+    <string name="settings_advanced">Advanced settings</string>
+    <string name="mode_use_fract_auto">Auto (use best)</string>
+    <string name="mode_use_fract_use">Only fractional</string>
+    <string name="mode_use_fract_int">Only integer</string>
+    <string name="menu_status">Status</string>
+    <string name="menu_log">Log</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_desc_status">Show current Auto Frame Rate status</string>
+    <string name="menu_desc_log">Display log of the running daemon</string>
+    <string name="menu_desc_settings">Change the way Auto Frame Rate works</string>
+    <string name="press_back_again">Press \'Back\' quickly again to quit application</string>
+    <string name="prefs_reset">Reset user preferences</string>
+    <string name="prefs_apply">Apply user preferences</string>
+    <string name="prefs_title">AFRd settings</string>
+    <string name="log_clear">Clear log file</string>
+    <string name="status_title">AFRd status</string>
+    <string name="msg_reset_prefs_failed">Failed to reset user preferences</string>
+    <string name="msg_apply_prefs_failed">Failed to apply user preferences</string>
+    <string name="prefs_group_timings">Switch timings</string>
+    <string name="msg_reset_prefs_ok">AFRd settings were reset</string>
+    <string name="msg_apply_prefs_ok">AFRd settings changed</string>
+    <string name="log_title">Log file: %s %s</string>
+    <string name="log_is_off">LOGGING IS DISABLED</string>
+    <string name="notif_channel">AFRd status notification</string>
+</resources>

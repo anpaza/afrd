@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+              android:layout_height="match_parent" android:orientation="vertical"
+              tools:context=".StatusFragment">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40dp"
+                  android:background="@color/colorMenuBackground" android:orientation="horizontal">
+        <TextView android:id="@+id/statusTitle" android:layout_width="0dp"
+                  android:layout_height="match_parent" android:layout_weight="1"
+                  android:gravity="start|center_vertical" android:paddingStart="16dp"
+                  android:paddingEnd="16dp" android:text="@string/status_title"
+                  android:textSize="18sp"/>
+    </LinearLayout>
+
+    <FrameLayout android:id="@+id/no_signal" android:layout_width="match_parent"
+                 android:layout_height="match_parent" android:background="@drawable/no_signal"
+                 android:visibility="gone">
+
+        <TextView android:layout_width="match_parent" android:layout_height="match_parent"
+                  android:gravity="center" android:text="@string/no_signal"
+                  android:textColor="@android:color/white" android:textSize="48sp"
+                  android:typeface="monospace"/>
+    </FrameLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
+                  android:background="@color/colorStatusRowAlt" android:orientation="horizontal">
+        <TextView android:id="@+id/textView3" android:layout_width="0dp"
+                  android:layout_height="match_parent" android:layout_weight="1"
+                  android:gravity="start|center_vertical" android:text="@string/l_afrd_version"
+                  android:textSize="18sp"/>
+        <TextView android:id="@+id/textVersion" android:layout_width="0dp"
+                  android:layout_height="match_parent" android:layout_weight="1"
+                  android:gravity="start|center_vertical" android:textAlignment="textEnd"
+                  android:textSize="18sp"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
+                  android:background="@color/colorStatusRow" android:orientation="horizontal">
+        <TextView android:id="@+id/textView4" android:layout_width="0dp"
+                  android:layout_height="match_parent" android:layout_weight="1"
+                  android:gravity="start|center_vertical" android:text="@string/l_afrd_bdate"
+                  android:textSize="18sp"/>
+        <TextView android:id="@+id/textBuildDate" android:layout_width="0dp"
+                  android:layout_height="match_parent" android:layout_weight="1"
+                  android:gravity="start|center_vertical" android:textAlignment="textEnd"
+                  android:textSize="18sp"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
+                  android:background="@color/colorStatusRowAlt" android:orientation="horizontal">
+        <TextView android:id="@+id/textView6" android:layout_width="0dp"
+                  android:layout_height="match_parent" android:layout_weight="1"
+                  android:gravity="start|center_vertical" android:text="@string/l_afrd_enabled"
+                  android:textSize="18sp"/>
+        <ToggleButton android:id="@+id/toggleEnabled" android:layout_width="wrap_content"
+                      android:layout_height="match_parent" android:layout_weight="0"
+                      android:clickable="false" android:focusable="false"
+                      android:textOff="@string/l_no" android:textOn="@string/l_yes"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
+                  android:background="@color/colorStatusRow" android:orientation="horizontal">
+        <TextView android:id="@+id/textView8" android:layout_width="0dp"
+                  android:layout_height="match_parent" android:layout_weight="1"
+                  android:gravity="start|center_vertical" android:text="@string/l_switched"
+                  android:textSize="18sp"/>
+        <ToggleButton android:id="@+id/toggleModified" android:layout_width="wrap_content"
+                      android:layout_height="match_parent" android:layout_weight="0"
+                      android:clickable="false" android:focusable="false"
+                      android:textOff="@string/l_no" android:textOn="@string/l_yes"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
+                  android:background="@color/colorStatusRowAlt" android:orientation="horizontal">
+        <TextView android:id="@+id/textView9" android:layout_width="0dp"
+                  android:layout_height="match_parent" android:layout_weight="1"
+                  android:gravity="start|center_vertical" android:text="@string/l_blackened"
+                  android:textSize="18sp"/>
+        <ToggleButton android:id="@+id/toggleBlackened" android:layout_width="wrap_content"
+                      android:layout_height="match_parent" android:layout_weight="0"
+                      android:clickable="false" android:focusable="false"
+                      android:textOff="@string/l_no" android:textOn="@string/l_yes"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
+                  android:background="@color/colorStatusRow" android:orientation="horizontal">
+        <TextView android:id="@+id/textView10" android:layout_width="0dp"
+                  android:layout_height="match_parent" android:layout_weight="1"
+                  android:gravity="start|center_vertical" android:text="@string/l_current_hz"
+                  android:textSize="18sp"/>
+        <TextView android:id="@+id/textCurrentHz" android:layout_width="0dp"
+                  android:layout_height="match_parent" android:layout_weight="1"
+                  android:gravity="start|center_vertical" android:textAlignment="textEnd"
+                  android:textSize="18sp"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
+                  android:background="@color/colorStatusRowAlt" android:orientation="horizontal">
+        <TextView android:id="@+id/textView12" android:layout_width="0dp"
+                  android:layout_height="match_parent" android:layout_weight="1"
+                  android:gravity="start|center_vertical" android:text="@string/l_original_hz"
+                  android:textSize="18sp"/>
+        <TextView android:id="@+id/textOriginalHz" android:layout_width="0dp"
+                  android:layout_height="match_parent" android:layout_weight="1"
+                  android:gravity="start|center_vertical" android:textAlignment="textEnd"
+                  android:textSize="18sp"/>
+    </LinearLayout>
+</LinearLayout>
