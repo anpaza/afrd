@@ -9,7 +9,7 @@
 display_mode_t *g_modes = NULL;
 int g_modes_n = 0;
 display_mode_t g_current_mode;
-bool g_current_null = false;
+bool g_blackened = false;
 
 static bool mode_parse (char *desc, display_mode_t *mode)
 {
@@ -225,7 +225,7 @@ void display_mode_set_hz (display_mode_t *mode, int hz)
 
 void display_mode_switch (display_mode_t *mode)
 {
-	if (!g_current_null &&
+	if (!g_blackened &&
 	    display_mode_equal (mode, &g_current_mode)) {
 		trace (1, "Display mode is already "DISPMODE_FMT"\n",
 			DISPMODE_ARGS (*mode, display_mode_hz (mode)));
@@ -247,15 +247,15 @@ void display_mode_switch (display_mode_t *mode)
 
 	sysfs_write (g_mode_path, mode->name);
 	g_current_mode = *mode;
-	g_current_null = false;
+	g_blackened = false;
 }
 
 void display_mode_null ()
 {
-	if (g_current_null)
+	if (g_blackened)
 		return;
 
 	trace (2, "Blackout screen\n");
 	sysfs_write (g_mode_path, "null");
-	g_current_null = true;
+	g_blackened = true;
 }

@@ -14,6 +14,7 @@
 #include <libgen.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include "afrd.h"
 
@@ -34,6 +35,7 @@ int g_daemon = 0;
 int g_kill_daemon = 0;
 volatile int g_shutdown = 0;
 static int g_logh = -1;
+static bool g_logfn_firstuse = true;
 
 // the global config
 struct cfg_struct *g_cfg = NULL;
@@ -49,8 +51,9 @@ static void show_help (char *const *argv)
 	printf ("usage: %s [options] [config-file]\n", argv [0]);
 	printf ("	-D	daemonize the program\n");
 	printf ("	-p FILE	write PID to file when running as daemon\n");
-	printf ("	-k	kill the running daemon\n");
+	printf ("	-k	kill the running daemon (can be used with -D)\n");
 	printf ("	-l FILE	write the log to FILE (imposes -vvv)\n");
+	printf ("	-s	display running daemon stats\n");
 	printf ("	-h	display this help\n");
 	printf ("	-v	verbose info about what's cooking\n");
 	printf ("	-V	display program version\n");
@@ -65,6 +68,14 @@ void trace_log (const char *logfn)
 
 	if (!logfn)
 		return;
+
+	/* on first open rename old log to *~ */
+	if (g_logfn_firstuse) {
+		g_logfn_firstuse = false;
+		char backup_logfn [300];
+		snprintf (backup_logfn, sizeof (backup_logfn), "%s~", logfn);
+		rename (logfn, backup_logfn);
+	}
 
 	g_logh = open (logfn, O_WRONLY | O_APPEND | O_CLOEXEC | O_CREAT | O_SYNC, 0644);
 	if (g_logh < 0) {
@@ -166,8 +177,15 @@ static int kill_daemon ()
 	} else if (kill (pid, SIGINT)) {
 		fprintf (stderr, "%s: failed to kill daemon PID %d\n",
 			g_program, pid);
-	} else
+	} else {
+		for (int i = 0; i < 80; i++) {
+			usleep (25000);
+			if (kill (pid, 0) && (errno == ESRCH))
+				break;
+		}
+		unlink (g_pidfile);
 		return EXIT_SUCCESS;
+	}
 
 	return EXIT_FAILURE;
 }
@@ -178,13 +196,13 @@ static void daemonize ()
 	if (pid > 0) {
 		fprintf (stderr, "%s: daemon is already running with PID %d\n",
 			g_program, pid);
-		exit (-1);
+		exit (EXIT_FAILURE);
 	}
 
 	pid = fork ();
 	if (pid < 0) {
 		fprintf (stderr, "%s: can't demonize, aborting\n", g_program);
-		exit (-1);
+		exit (EXIT_FAILURE);
 	}
 
 	if (pid != 0) {
@@ -193,9 +211,12 @@ static void daemonize ()
 		char *dn = dirname (pidfile);
 		if (*dn && (access (dn, F_OK) != 0))
 			mkdir (dn, 0755);
+		else
+			// ensure sane access rights to /dev/run
+			chmod (dn, 0755);
 		free (pidfile);
 
-		int h = open (g_pidfile, O_CREAT | O_WRONLY, 0644);
+		int h = open (g_pidfile, O_CREAT | O_WRONLY | O_CLOEXEC, 0644);
 		if (h >= 0) {
 			char tmp [10];
 			write (h, tmp, snprintf (tmp, sizeof (tmp), "%d", pid));
@@ -205,7 +226,7 @@ static void daemonize ()
 				g_program, g_pidfile);
 
 		/* successfuly daemonized */
-		exit (2);
+		exit (EXIT_SUCCESS);
 	}
 
 	/* continuing in child, close console */
@@ -214,13 +235,39 @@ static void daemonize ()
 	close (2);
 }
 
+static void display_stats ()
+{
+	if (!shmem_init (true))
+		return;
+
+	if (!shmem_read ()) {
+		trace (0, "failed to read shared memory\n");
+	} else {
+		printf ("afrd version: %d.%d.%d built %s\n",
+			g_afrd_stats.ver_major, g_afrd_stats.ver_minor, g_afrd_stats.ver_micro,
+			g_afrd_stats.bdate);
+		printf ("afrd is enabled: %s\n", g_afrd_stats.enabled ? "yes" : "no");
+		printf ("Display refresh rate is switched: %s\n", g_afrd_stats.switched ? "yes" : "no");
+		printf ("Display is blackened: %s\n", g_afrd_stats.blackened ? "yes" : "no");
+		printf ("Current display refresh rate: %u.%02uHz\n",
+			g_afrd_stats.current_hz >> 8, (100 * (g_afrd_stats.current_hz & 255)) >> 8);
+		printf ("Original display refresh rate: %u.%02uHz\n",
+			g_afrd_stats.original_hz >> 8, (100 * (g_afrd_stats.original_hz & 255)) >> 8);
+	}
+
+	shmem_fini ();
+}
+
 int main (int argc, char *const *argv)
 {
 	int ret;
 
+	// ensure a sane umask so that user processes can read our files
+	umask (022);
+
 	g_program = argv [0];
 
-	while ((ret = getopt (argc, argv, "Dp:kl:hvV")) >= 0)
+	while ((ret = getopt (argc, argv, "Dp:kl:shvV")) >= 0)
 		switch (ret) {
 			case 'D':
 				g_daemon = 1;
@@ -238,21 +285,28 @@ int main (int argc, char *const *argv)
 				trace_log (optarg);
 				break;
 
+			case 's':
+				display_stats ();
+				return 0;
+
 			case 'v':
 				g_verbose++;
 				break;
 
 			case 'h':
 				show_help (argv);
-				return -1;
+				return EXIT_FAILURE;
 
 			case 'V':
 				show_version ();
-				return -1;
+				return EXIT_FAILURE;
 		}
 
-	if (g_kill_daemon)
-		return kill_daemon ();
+	if (g_kill_daemon) {
+		ret = kill_daemon ();
+		if (!g_daemon)
+			return ret;
+	}
 
 	if (g_daemon)
 		daemonize ();

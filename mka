@@ -1,7 +1,9 @@
 #!/bin/sh
 
+#DEBUG="NDK_DEBUG=1"
+
 export NDK=/usr/local/app/Android/SDK/ndk-bundle
-$NDK/ndk-build $* || exit $?
+$NDK/ndk-build $DEBUG $* || exit $?
 
 ANDRAW=android/app/src/main/res/raw
 for afrd in libs/*/afrd ; do

@@ -138,7 +138,7 @@ The following parameters are recognized by AFRD:
 * *switch.blackout*
     When movie starts after this period of time the screen will be
     disabled to minimize flicker. Don't set it too low as in some
-    circumstances screen may be blacked out when it shouldn't be.
+    circumstances screen may be blackened when it shouldn't be.
 
 * *mode.path*
     Points to sysfs file used to switch current video mode.

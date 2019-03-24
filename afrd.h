@@ -30,6 +30,7 @@
 
 #define ARRAY_SIZE(x)			(sizeof (x) / sizeof (x [0]))
 
+/// display mode information
 typedef struct
 {
 	char name [32];
@@ -51,6 +52,8 @@ typedef struct
 extern const char *g_program;
 // program version
 extern const char *g_version;
+// path to PID file
+extern const char *g_pidfile;
 // program build date/time
 extern const char *g_bdate;
 // the file name of the active config
@@ -73,7 +76,7 @@ extern int g_modes_n;
 // current video mode
 extern display_mode_t g_current_mode;
 // true if screen is disabled
-extern bool g_current_null;
+extern bool g_blackened;
 // the delay before switching display mode
 extern int g_mode_switch_delay;
 
@@ -149,5 +152,42 @@ extern bool strlist_load (strlist_t *list, const char *key, const char *desc);
 extern void strlist_free (strlist_t *list);
 // Check if string list contains selected value
 extern bool strlist_contains (strlist_t *list, const char *str);
+
+/// afrd statistics in shared memory
+typedef struct
+{
+	/// CRC32 checksum, also 'modified' flag, all data except first & last fields
+	uint32_t crc32;
+	/// sizeof (afrd_shmem_t)
+	uint16_t size;
+	/// afrd is enabled?
+	bool enabled;
+	/// display refresh rate is switched?
+	bool switched;
+	/// display is blackened
+	bool blackened;
+	/// afrd version major, minor, micro
+	uint8_t ver_major, ver_minor, ver_micro;
+	/// afrd build date (zero-terminated)
+	char bdate [24];
+	/// current display refresh rate
+	uint32_t current_hz;
+	/// original display refresh rate
+	uint32_t original_hz;
+	/// a copy of crc32 from first field
+	uint32_t crc32_copy;
+} __attribute__((packed)) afrd_shmem_t;
+
+// afrd statistics
+extern afrd_shmem_t g_afrd_stats;
+
+// initialize shared-memory stats
+extern bool shmem_init (bool read);
+// finalize the shared memory object
+extern void shmem_fini ();
+// update shared memory stats from g_afrd_stats
+extern void shmem_update ();
+// update g_afrd_stats from shared memory (in read mode)
+extern bool shmem_read ();
 
 #endif /* __AFRD_H__ */

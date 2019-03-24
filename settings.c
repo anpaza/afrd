@@ -37,6 +37,7 @@ void settings_fini ()
 		for (int i = 0; i < stor_size; i++)
 			free (stor [i]);
 		free (stor);
+		stor = NULL;
 		stor_size = 0;
 	}
 }

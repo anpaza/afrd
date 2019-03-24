@@ -109,14 +109,16 @@ static bool colorspace_parse (char *filt, struct colorspace_t *cs, bool reserved
 	if (!filt)
 		return false;
 
-	char *cur_r;
-	char *cur = strtok_r (filt, ",", &cur_r);
-	do {
+	char *cur_r, *cur, *tokens = filt;
+	while ((cur = strtok_r (tokens, ",", &cur_r)) != NULL)
+	{
+		tokens = NULL;
+
 		if (!parse_str (cur, &cs->cs, parse_cs) &&
 		    !parse_str (cur, &cs->cd, parse_cd) &&
 		    !parse_str (cur, &cs->cr, parse_cr))
 			return false;
-	} while ((cur = strtok_r (NULL, ",", &cur_r)) != NULL);
+	}
 
 	return true;
 }
@@ -156,9 +158,10 @@ static const char *colorspace_str (struct colorspace_t *cs)
 static bool colorspace_parse_filter (const char *csel)
 {
 	char *csel_dup = strdup (csel);
-	char *cur_r;
-	char *cur = strtok_r (csel_dup, spaces, &cur_r);
-	do {
+	char *cur_r, *cur, *tokens = csel_dup;
+	while ((cur = strtok_r (tokens, spaces, &cur_r)) != NULL)
+	{
+		tokens = NULL;
 		cur += strspn (cur, spaces);
 
 		if (g_cs_filter_size >= ARRAY_SIZE (g_cs_filter)) {
@@ -190,7 +193,7 @@ static bool colorspace_parse_filter (const char *csel)
 
 		trace (2, "\t+ [%s] if mode matches %s\n", colorspace_str (&csf->cs), cur);
 		g_cs_filter_size++;
-	} while ((cur = strtok_r (NULL, spaces, &cur_r)) != NULL);
+	}
 
 	free (csel_dup);
 
@@ -209,9 +212,10 @@ bool colorspace_refresh ()
 
 	trace (1, "loading available Color Spaces\n");
 
-	char *cur_r;
-	char *cur = strtok_r (list, spaces, &cur_r);
-	do {
+	char *cur_r, *cur, *tokens = list;
+	while ((cur = strtok_r (tokens, spaces, &cur_r)) != NULL)
+	{
+		tokens = NULL;
 		cur += strspn (cur, spaces);
 
 		if (g_cs_supported_size > ARRAY_SIZE (g_cs_supported)) {
@@ -227,7 +231,7 @@ bool colorspace_refresh ()
 
 		trace (2, "\t+ %s\n", colorspace_str (cs));
 		g_cs_supported_size++;
-	} while ((cur = strtok_r (NULL, spaces, &cur_r)) != NULL);
+	}
 
 	free (list);
 
