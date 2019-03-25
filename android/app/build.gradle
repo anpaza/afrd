@@ -9,7 +9,7 @@ android {
         versionCode 1
         versionName '0.2.5'
         targetSdkVersion 28
-        versionNameSuffix 'alpha'
+        versionNameSuffix 'beta'
         project.ext.set ("archivesBaseName", "${applicationId}-${versionName}${versionNameSuffix}".toString ());
     }
     buildTypes {

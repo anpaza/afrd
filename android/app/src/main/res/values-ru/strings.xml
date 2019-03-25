@@ -90,11 +90,11 @@
     <string name="mode_use_fract_use">Предпочитать дробные частоты</string>
     <string name="mode_use_fract_int">Предпочитать целые частоты</string>
     <string name="settings_advanced">Настройки для опытных пользователей</string>
-    <string name="notif_start_afrd">Включить Автоматический Подбор Частоты</string>
+    <string name="notif_start_afrd">Включить АПЧ</string>
+    <string name="notif_stop_afrd">Отключить АПЧ</string>
     <string name="notif_enabled">AFRd включён</string>
     <string name="notif_disabled">AFRd отключён</string>
     <string name="notif_hz">Частота развёртки: %s, исходная: %s</string>
-    <string name="notif_stop_afrd">Отключить Автоматический Подбор Частоты</string>
     <string name="channel_description">Управление текущим состоянием AFRd</string>
     <string name="error_opening_log">Не удалось открыть файл журнала; возможно, он ещё не
         существует.

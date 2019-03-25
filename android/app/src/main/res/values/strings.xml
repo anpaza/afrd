@@ -85,8 +85,8 @@
     <string name="notif_enabled">AFRd is enabled</string>
     <string name="notif_disabled">AFRd is disabled</string>
     <string name="notif_hz">Refresh rate: %s, original: %s</string>
-    <string name="notif_stop_afrd">Disable Automatic Frame Rate</string>
-    <string name="notif_start_afrd">Enable Automatic Frame Rate</string>
+    <string name="notif_stop_afrd">Disable AFR</string>
+    <string name="notif_start_afrd">Enable AFR</string>
     <string name="settings_advanced">Advanced settings</string>
     <string name="mode_use_fract_auto">Auto (use best)</string>
     <string name="mode_use_fract_use">Only fractional</string>

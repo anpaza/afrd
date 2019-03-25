@@ -79,16 +79,20 @@ public class AFRService extends Service
             Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS |
             Intent.FLAG_ACTIVITY_NO_ANIMATION);
 
-        Notification n;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-        {
-            Notification.Action action = new Notification.Action.Builder (
-                Icon.createWithResource (this, mStatus.mEnabled ? R.drawable.ic_stop : R.drawable.ic_play),
-                getString (mStatus.mEnabled ? R.string.notif_stop_afrd : R.string.notif_start_afrd),
-                PendingIntent.getActivity (this, 0, startStop, 0)).build ();
+        Notification.Action action = new Notification.Action.Builder (
+            Icon.createWithResource (this, mStatus.mEnabled ? R.drawable.ic_stop : R.drawable.ic_play),
+            getString (mStatus.mEnabled ? R.string.notif_stop_afrd : R.string.notif_start_afrd),
+            PendingIntent.getActivity (this, 0, startStop, 0)).build ();
 
-            n = new Notification.Builder (this, NOTIF_CHANNEL)
+        Notification.Builder b;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            b = new Notification.Builder (this, NOTIF_CHANNEL);
+        else
+            b = new Notification.Builder (this);
+
+        Notification n = b
                 .setSmallIcon (R.drawable.ic_afrd)
+                .setLargeIcon (Icon.createWithResource (this, R.drawable.ic_afrd))
                 .setContentIntent (PendingIntent.getActivity (this, 0, runApp, 0))
                 .setOngoing (true)
                 .setOnlyAlertOnce (true)
@@ -100,43 +104,8 @@ public class AFRService extends Service
                     Status.hz2str (getResources (), mStatus.mOriginalHz)))
                 .addAction (action)
                 .build ();
-        }
-        else
-        {
-            n = new Notification ();
-            n.when = System.currentTimeMillis ();
-            n.flags = Notification.FLAG_ONGOING_EVENT |
-                Notification.FLAG_ONLY_ALERT_ONCE |
-                Notification.FLAG_LOCAL_ONLY;
-            n.category = Notification.CATEGORY_SERVICE;
-            n.priority = Notification.PRIORITY_LOW;
-            n.contentIntent = PendingIntent.getActivity (this, 0, runApp, 0);
-
-            n.extras = new Bundle ();
-            n.extras.putString (Notification.EXTRA_TITLE, getString (
-                mStatus.mEnabled ? R.string.notif_enabled : R.string.notif_disabled));
-            n.extras.putString (Notification.EXTRA_TEXT, getString (R.string.notif_hz,
-                Status.hz2str (getResources (), mStatus.mCurrentHz),
-                Status.hz2str (getResources (), mStatus.mOriginalHz)));
-            n.extras.putInt (Notification.EXTRA_SMALL_ICON, R.drawable.ic_afrd);
-            n.extras.putBoolean (Notification.EXTRA_SHOW_WHEN, false);
-
-        /*
-        n.actions = new Notification.Action[1];
-        n.actions [0] = new Notification.Action (
-            mStatus.mEnabled ? R.drawable.ic_stop : R.drawable.ic_play,
-            getString (mStatus.mEnabled ? R.string.notif_stop_afrd : R.string.notif_start_afrd),
-            PendingIntent.getActivity (this, 0, startStop, 0));
-            */
-        }
 
         startForeground (NOTIF_STATUS_ID, n);
-    }
-
-    @Override
-    public void onDestroy ()
-    {
-        super.onDestroy ();
     }
 
     @Override

@@ -10,3 +10,14 @@ for afrd in libs/*/afrd ; do
 	arch=$(basename $(dirname $afrd) | tr '-' '_')
 	cp $afrd $ANDRAW/afrd_$arch
 done
+
+VERSION=`sed main.c -ne '/const char \*g_version/{' -e 's/^.*= *"//' -e 's/".*$//' -e p -e '}'`
+BUILD=android/app/build.gradle
+sed -e "s/\( *versionName *'\).*\('\)/\1$VERSION\2/" \
+	"${BUILD}" > "${BUILD}~"
+if ! cmp -s "${BUILD}~" "${BUILD}" ; then
+	mv -f "${BUILD}~" "${BUILD}"
+	echo "Updated Android version number"
+else
+	rm -f "${BUILD}~"
+fi
