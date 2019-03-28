@@ -134,4 +134,5 @@
     <string name="menu_faq">ЧАВО</string>
     <string name="menu_desc_faq">ЧАсто задаваемые ВОпросы</string>
     <string name="faq_title">Часто Задаваемые Вопросы и полезные советы</string>
+    <string name="about_testing_support">Тестирование и поддержка</string>
 </resources>

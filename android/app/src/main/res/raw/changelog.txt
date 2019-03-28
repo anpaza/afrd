@@ -5,6 +5,8 @@
 
     Added the obligatory 'About' screen.
 
+    Added the 'Frequently Asked Questions' screen.
+
 0.2.5 Mon Mar 25 09:45:55 2019 +0300
     Now daemon checks if another daemon is already running and won't
     run a second copy.

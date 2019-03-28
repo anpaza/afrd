@@ -21,6 +21,10 @@ android {
     buildToolsVersion '28.0.3'
     productFlavors {
     }
+    lintOptions {
+        //checkReleaseBuilds false
+        abortOnError false
+    }
 }
 
 dependencies {

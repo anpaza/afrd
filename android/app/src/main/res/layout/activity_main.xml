@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:id="@+id/drawer_layout" android:layout_width="match_parent"
+              xmlns:tools="http://schemas.android.com/tools" android:id="@+id/drawer_layout" android:layout_width="match_parent"
               android:layout_height="match_parent" android:fitsSystemWindows="true"
               android:orientation="horizontal" android:showDividers="middle">
     <LinearLayout android:id="@+id/menu_layout" android:layout_width="300dp"
@@ -23,6 +23,9 @@
                               android:layout_height="wrap_content" android:layout_weight="1"
                               android:gravity="bottom"
                               android:paddingTop="@dimen/nav_header_vertical_spacing" android:text="@string/nav_header_title"
+                              android:textAlignment="center"/>
+                    <TextView android:id="@+id/version" android:layout_width="match_parent"
+                              android:layout_height="0dp" android:layout_weight="1"
                               android:textAlignment="center"/>
                     <TextView android:layout_width="match_parent"
                               android:layout_height="wrap_content" android:layout_weight="1"

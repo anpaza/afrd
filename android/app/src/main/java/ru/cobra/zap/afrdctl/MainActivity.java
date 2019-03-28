@@ -23,6 +23,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
@@ -62,6 +63,10 @@ public class MainActivity extends Activity
             // Can't find own package? Gross!
             finishAndRemoveTask ();
         }
+
+        ((TextView) findViewById (R.id.version)).setText (
+            String.format (getString (R.string.afrdctl_version),
+                BuildConfig.VERSION_NAME, BuildConfig.BUILD_TYPE));
 
         mControl = new Control (this);
         mOptions = getSharedPreferences ("ini_options", 0);

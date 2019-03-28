@@ -33,11 +33,10 @@
 ! video signal. Sometimes it fails to do it correctly, and it just
 ! 'hangs', although this depends from model to model.
 
-! Some people assert that this does not happen if you switch video
-! output to the so-called "RGB mode" (the normal video signal encoding
-! uses the YUV color space).
+! Some people assert that this does not happen if you switch HDMI bus
+! to RGB format (normally video signal is encoded in the YUV format).
 
-? How I can switch the HDMI bus to RGB mode?
+? How I can switch the HDMI bus to RGB format?
 ? I heard this can help with "greenish image" / "black screens" /
 ? bad karma etc.
 

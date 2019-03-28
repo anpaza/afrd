@@ -131,6 +131,7 @@
     <string name="about_yadoff" translatable="false">yadoff @ 4pda</string>
     <string name="about_serge_kononoff" translatable="false">serge_kononoff @ 4pda</string>
     <string name="about_testing">Testing</string>
+    <string name="about_testing_support">Testing &amp; Support</string>
     <string name="about_supporter">Supporter</string>
     <string name="menu_desc_about">Authors, version history</string>
     <string name="prefs_toast">Toast refresh rate on switch</string>
@@ -139,4 +140,5 @@
     <string name="menu_faq">FAQ</string>
     <string name="menu_desc_faq">Frequently Asked Questions</string>
     <string name="faq_title"><![CDATA[Frequently Asked Questions & Tips]]></string>
+    <string name="afrdctl_version">Version %s-%s</string>
 </resources>

@@ -1,4 +1,12 @@
-0.2.6
+0.2.5
+
+    Now daemon checks if another daemon is already running and won't
+    run a second copy.
+
+    Fixed some bugs that could lead to afrd crashes.
+
+    Installation and set-up via Android application!
+
     Notifications fixed in Android 6 & 7
 
     New option to show display refresh rate after changes.
@@ -6,14 +14,6 @@
     Added the obligatory 'About' screen.
 
     Added the 'Frequently Asked Questions' screen.
-
-0.2.5 Mon Mar 25 09:45:55 2019 +0300
-    Now daemon checks if another daemon is already running and won't
-    run a second copy.
-
-    Fixed some bugs that could lead to afrd crashes.
-
-    Installation and set-up via Android application!
 
 0.2.4 Sun Mar 10 18:22:32 2019 +0300
 
@@ -27,6 +27,7 @@
     AFRd installer via System Recovery!
 
 0.2.2 Fri Mar 8 00:34:39 2019 +0300
+
     Substantially enhanced frame rate detection of the starting movie.
       * After start afrd will wait 300ms.
       * After that every 100ms afrd guesses fps by querying video decoder
@@ -58,6 +59,7 @@
     to detect frame rate, if previous attempt fails.
 
 0.2.0 Sat Feb 23 02:20:21 2019 +0300
+
     Implemented refresh rate switching by hardware decoder activation.
     This allows afrd to work without kernel support and makes it a universal
     tool for most newer AmLogic based devices.
@@ -67,10 +69,12 @@
     Tried to get rid of extraneous rate switches during ff/rewind.
 
 0.1.1 Tue Jan 1 17:48:50 2019 +0300
+
     Added X96 support via patched kernel 4.9 for S905X2.
 
     Added fractional fps support (23.976, 29.97, 59.94).
 
 0.1.0 Sun Aug 20 21:59:45 2017 +0300
+
     First release of the auto framerate daemon as part of the custom kernel
     for Android TV box X92/S912.
