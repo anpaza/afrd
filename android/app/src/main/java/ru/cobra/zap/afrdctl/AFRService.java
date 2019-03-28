@@ -7,11 +7,12 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.drawable.Icon;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.widget.Toast;
 
 import ru.cobra.zap.afrd.Control;
 import ru.cobra.zap.afrd.Status;
@@ -23,6 +24,8 @@ public class AFRService extends Service
     private Handler mTimer = new Handler ();
     private Control mControl;
     private Status mStatus = new Status ();
+    private int oldRefreshRate = -1;
+    private SharedPreferences mOptions;
 
     @Override
     public int onStartCommand (Intent intent, int flags, int startId)
@@ -37,17 +40,6 @@ public class AFRService extends Service
 
         mControl = new Control (this);
 
-        mTimer.post (new Runnable ()
-        {
-            @Override
-            public void run ()
-            {
-                checkDaemon ();
-                updateNotification ();
-                mTimer.postDelayed (this, 1000);
-            }
-        });
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
         {
             NotificationManager notificationManager =
@@ -59,6 +51,19 @@ public class AFRService extends Service
                 notificationManager.createNotificationChannel (notificationChannel);
             }
         }
+
+        mOptions = getSharedPreferences ("ini_options", 0);
+
+        mTimer.post (new Runnable ()
+        {
+            @Override
+            public void run ()
+            {
+                checkDaemon ();
+                updateNotification ();
+                mTimer.postDelayed (this, 1000);
+            }
+        });
     }
 
     private void updateNotification ()
@@ -68,6 +73,28 @@ public class AFRService extends Service
 
         if (!mStatus.refresh ())
             return;
+
+        if (oldRefreshRate != mStatus.mCurrentHz)
+        {
+            boolean show_toast = (oldRefreshRate != -1) &&
+                mOptions.getBoolean ("toast_hz", true);
+
+            oldRefreshRate = mStatus.mCurrentHz;
+
+            if (show_toast)
+                mTimer.post (new Runnable ()
+                {
+                    final int current_hz = mStatus.mCurrentHz;
+
+                    @Override
+                    public void run ()
+                    {
+                        Toast.makeText (getApplicationContext (),
+                            Status.hz2str (getResources (), current_hz),
+                            Toast.LENGTH_LONG).show ();
+                    }
+                });
+        }
 
         // When user presses the notification, the main activity shows up
         Intent runApp = new Intent (this, MainActivity.class);

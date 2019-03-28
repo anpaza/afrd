@@ -92,6 +92,14 @@ public class MainActivity extends Activity
         menuent.put ("item", getString (R.string.menu_log));
         menuent.put ("desc", getString (R.string.menu_desc_log));
         data.add (menuent);
+        menuent = new ArrayMap<> (2);
+        menuent.put ("item", getString (R.string.menu_faq));
+        menuent.put ("desc", getString (R.string.menu_desc_faq));
+        data.add (menuent);
+        menuent = new ArrayMap<> (2);
+        menuent.put ("item", getString (R.string.menu_about));
+        menuent.put ("desc", getString (R.string.menu_desc_about));
+        data.add (menuent);
 
         SimpleAdapter adapter = new SimpleAdapter (this, data, android.R.layout.simple_list_item_2,
             new String[] { "item", "desc" }, new int[] { android.R.id.text1, android.R.id.text2 });
@@ -111,7 +119,7 @@ public class MainActivity extends Activity
 
                     case 1:
                         if (getFragment ("settings") == null)
-                            addFragment (new SettingsFragment (), "settings");
+                            addFragment (SettingsFragment.create (), "settings");
                         break;
 
                     case 2:
@@ -120,6 +128,16 @@ public class MainActivity extends Activity
                                 mOptions.getString ("log_file", null),
                                 mOptions.getBoolean ("log_enable", false)),
                                 "log");
+                        break;
+
+                    case 3:
+                        if (getFragment ("faq") == null)
+                            addFragment (FAQFragment.create (), "faq");
+                        break;
+
+                    case 4:
+                        if (getFragment ("about") == null)
+                            addFragment (AboutFragment.create (), "about");
                         break;
                 }
             }

@@ -72,7 +72,7 @@ public class Control
         return false;
     }
 
-    private boolean extractFile (Context ctx, int res_id, File outf)
+    private static boolean extractFile (Context ctx, int res_id, File outf)
     {
         try
         {

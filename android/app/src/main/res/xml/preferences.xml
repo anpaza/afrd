@@ -4,12 +4,15 @@
 
     <SwitchPreference android:defaultValue="1" android:key="enable" android:summary="@string/prefsum_enable"
                       android:title="@string/prefs_enable"/>
-    <SwitchPreference android:defaultValue="0" android:key="mode_prefer_exact"
-                      android:summary="@string/prefsum_mode_prefer_exact"
-                      android:title="@string/prefs_mode_prefer_exact"/>
     <SwitchPreference android:defaultValue="0" android:key="log_enable"
                       android:summary="@string/prefsum_log_enable"
                       android:title="@string/prefs_log_enable"/>
+    <SwitchPreference android:layout_width="wrap_content" android:layout_height="wrap_content"
+                      android:defaultValue="1" android:key="toast_hz"
+                      android:summary="@string/prefsum_toast" android:title="@string/prefs_toast"/>
+    <SwitchPreference android:defaultValue="0" android:key="mode_prefer_exact"
+                      android:summary="@string/prefsum_mode_prefer_exact"
+                      android:title="@string/prefs_mode_prefer_exact"/>
     <ListPreference android:defaultValue="0" android:entries="@array/mode_use_fract"
                     android:entryValues="@array/mode_use_fract_value" android:key="mode_use_fract"
                     android:summary="@string/prefsum_mode_use_fract"

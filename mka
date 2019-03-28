@@ -21,3 +21,8 @@ if ! cmp -s "${BUILD}~" "${BUILD}" ; then
 else
 	rm -f "${BUILD}~"
 fi
+
+cp ChangeLog-en.txt android/app/src/main/res/raw/changelog.txt
+cp ChangeLog-ru.txt android/app/src/main/res/raw-ru/changelog.txt
+cp FAQ-en.txt android/app/src/main/res/raw/faq.txt
+cp FAQ-ru.txt android/app/src/main/res/raw-ru/faq.txt

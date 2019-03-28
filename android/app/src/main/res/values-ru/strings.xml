@@ -121,4 +121,17 @@
     <string name="log_title">Файл журнала: %s %s</string>
     <string name="log_is_off">ЖУРНАЛ ВЫКЛЮЧЕН</string>
     <string name="notif_channel">Состояние AFRd</string>
+    <string name="menu_about">О программе</string>
+    <string name="about_history">История версий</string>
+    <string name="about_authors">Разработчик программы</string>
+    <string name="about_me">Андрей Заболотный / anpaza @ 4pda</string>
+    <string name="about_thanks">Особая благодарность</string>
+    <string name="about_testing">Тестирование</string>
+    <string name="about_supporter">Болельщик</string>
+    <string name="menu_desc_about">Авторы, история версий</string>
+    <string name="prefs_toast">Показ частоты развёртки при изменении</string>
+    <string name="prefsum_toast">При изменении показать частоту развёртки в маленьком всплывающем окне</string>
+    <string name="menu_faq">ЧАВО</string>
+    <string name="menu_desc_faq">ЧАсто задаваемые ВОпросы</string>
+    <string name="faq_title">Часто Задаваемые Вопросы и полезные советы</string>
 </resources>

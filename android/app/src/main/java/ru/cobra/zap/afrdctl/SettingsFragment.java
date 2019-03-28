@@ -16,6 +16,11 @@ public class SettingsFragment extends PreferenceFragment
 {
     private MainActivity mMain;
 
+    static SettingsFragment create ()
+    {
+        return new SettingsFragment ();
+    }
+
     @Override
     public void onCreate (Bundle savedInstanceState)
     {

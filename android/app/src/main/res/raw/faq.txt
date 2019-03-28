@@ -1,0 +1,54 @@
+? I still see jitter in videos. Why?
+? Despite the fact that AFRd correctly switches refresh rate, I still
+? see frame jitter on playback.
+
+! AFRd is not a magic pill, it will just switch display mode to one
+! that is most suitable for current movie.
+
+! Everything else depends on a lot of other factors - the quality of
+! video stream, the quality of the hardware decoder, the program
+! for playing video, the setup of your TV.
+
+? Green-ish/purple-ish image during playback
+? Sometimes during playback image becomes "greenish" (sometimes:
+? "purplish"). What do I do?
+
+! The usual reason for these faults are loose connections on
+! HDMI bus between the TV box and the TV.
+
+! Try replacing the HDMI cable with something of a better quality:
+! less flexible are better (although less handy), ferrite rings
+! are a bonus (bulges near the ends of the cable).
+
+! Also try inserting the cable into a different HDMI jack, if it
+! is possible.
+
+? Black screen on refresh rate switch
+? Sometimes after refresh rate switching screen becomes black and
+? won't restore (sometimes: will restore after video stops, or:
+? restores after I reboot the box).
+
+! This is your TV fault. Refresh rate switching is a stress situation
+! for a TV - it has to determine all the parameters of the incoming
+! video signal. Sometimes it fails to do it correctly, and it just
+! 'hangs', although this depends from model to model.
+
+! Some people assert that this does not happen if you switch video
+! output to the so-called "RGB mode" (the normal video signal encoding
+! uses the YUV color space).
+
+? How I can switch the HDMI bus to RGB mode?
+? I heard this can help with "greenish image" / "black screens" /
+? bad karma etc.
+
+! Open "Settings" -> "Advanced settings" -> "Color space selection rules".
+! Replace the value "...=444" with "...=rgb". Don't touch the "420"
+! mode - it is not possible to transmit an RGB stream at 4k resolution
+! and >30hz refresh rates via HDMI 1.x.
+
+? My TV doesn't "like" certain refresh rates
+? I use the "Prefer exact refresh rates" option but, still, I want to use
+? 60Hz refresh instead of 30Hz. How can I do it?
+
+! Open "Advanced settings" -> "Blacklisted refresh rates" and add the
+! refresh rate of 30 (and, possibly, 29.97) Hz to the list.

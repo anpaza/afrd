@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools"
+              android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical"
+              tools:context=".AboutFragment">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
+                  android:background="@color/colorMenuBackground" android:orientation="horizontal">
+        <TextView android:id="@+id/textView5" android:layout_width="match_parent"
+                  android:layout_height="wrap_content" android:layout_gravity="center_vertical"
+                  android:layout_weight="1" android:paddingStart="16dp" android:paddingEnd="16dp"
+                  android:text="@string/about_authors" android:textAlignment="textStart"
+                  android:textSize="18sp"/>
+    </LinearLayout>
+    <TextView android:id="@+id/textView7" android:layout_width="match_parent"
+              android:layout_height="wrap_content" android:paddingStart="16sp" android:paddingEnd="16sp"
+              android:text="@string/about_me" android:textSize="24sp"/>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
+                  android:background="@color/colorMenuBackground" android:orientation="horizontal">
+        <TextView android:id="@+id/textView5" android:layout_width="match_parent"
+                  android:layout_height="wrap_content" android:layout_gravity="center_vertical"
+                  android:layout_weight="1" android:paddingStart="16dp" android:paddingEnd="16dp"
+                  android:text="@string/about_thanks" android:textAlignment="textStart"
+                  android:textSize="18sp"/>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/about_thanks" android:layout_width="match_parent"
+                  android:layout_height="40sp" android:animateLayoutChanges="true"
+                  android:orientation="vertical">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
+                      android:orientation="horizontal">
+            <TextView android:id="@+id/textView13" android:layout_width="wrap_content"
+                      android:layout_height="wrap_content" android:layout_gravity="center_vertical"
+                      android:paddingStart="16sp" android:paddingEnd="16sp"
+                      android:text="@string/about_testing"/>
+            <TextView android:id="@+id/textView" android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:layout_gravity="center_vertical"
+                      android:layout_weight="1" android:paddingStart="16sp"
+                      android:paddingEnd="16sp" android:text="@string/about_kigba"
+                      android:textSize="24sp"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+                      android:orientation="horizontal">
+            <TextView android:id="@+id/textView13" android:layout_width="wrap_content"
+                      android:layout_height="wrap_content" android:layout_gravity="center_vertical"
+                      android:paddingStart="16sp" android:paddingEnd="16sp"
+                      android:text="@string/about_supporter"/>
+            <TextView android:id="@+id/textView16" android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:paddingStart="16sp"
+                      android:paddingEnd="16sp" android:text="@string/about_serge_kononoff"
+                      android:textSize="24sp"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+                      android:orientation="horizontal">
+            <TextView android:id="@+id/textView13" android:layout_width="wrap_content"
+                      android:layout_height="wrap_content" android:layout_gravity="center_vertical"
+                      android:paddingStart="16sp" android:paddingEnd="16sp"
+                      android:text="@string/about_testing"/>
+            <TextView android:id="@+id/textView15" android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:paddingStart="16sp"
+                      android:paddingEnd="16sp" android:text="@string/about_yadoff"
+                      android:textSize="24sp"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+                      android:orientation="horizontal">
+            <TextView android:id="@+id/textView13" android:layout_width="wrap_content"
+                      android:layout_height="wrap_content" android:layout_gravity="center_vertical"
+                      android:paddingStart="16sp" android:paddingEnd="16sp"
+                      android:text="@string/about_testing"/>
+            <TextView android:id="@+id/textView14" android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:paddingStart="16sp"
+                      android:paddingEnd="16sp" android:text="@string/about_full_length"
+                      android:textSize="24sp"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+                      android:orientation="horizontal">
+            <TextView android:id="@+id/textView13" android:layout_width="wrap_content"
+                      android:layout_height="wrap_content" android:layout_gravity="center_vertical"
+                      android:paddingStart="16sp" android:paddingEnd="16sp"
+                      android:text="@string/about_testing"/>
+            <TextView android:id="@+id/textView11" android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:paddingStart="16sp"
+                      android:paddingEnd="16sp" android:text="@string/about_sasvlad"
+                      android:textSize="24sp"/>
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
+                  android:background="@color/colorMenuBackground" android:orientation="horizontal">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                  android:layout_gravity="center_vertical" android:paddingStart="16dp"
+                  android:paddingEnd="16dp" android:text="@string/about_history"
+                  android:textAlignment="textStart" android:textSize="18sp"/>
+    </LinearLayout>
+    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent">
+        <TextView android:id="@+id/whatsnew" android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:background="@color/colorLogBackground" android:fontFamily="monospace"
+                  android:paddingStart="16dp" android:paddingEnd="16dp" android:textSize="18sp"/>
+    </ScrollView>
+</LinearLayout>

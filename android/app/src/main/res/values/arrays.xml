@@ -14,10 +14,12 @@
         <item>@string/menu_status</item>
         <item>@string/menu_log</item>
         <item>@string/menu_settings</item>
+        <item>@string/menu_about</item>
     </string-array>
     <string-array name="menu_desc_main">
         <item>@string/menu_desc_status</item>
         <item>@string/menu_desc_log</item>
         <item>@string/menu_desc_settings</item>
+        <item>@string/menu_desc_about</item>
     </string-array>
 </resources>

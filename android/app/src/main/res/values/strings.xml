@@ -10,8 +10,6 @@
     <string name="nav_log">Log</string>
     <string name="nav_status">Status</string>
     <string name="ok">Ok</string>
-
-    <!-- TODO: Remove or change this placeholder text -->
     <string name="msg_title_critical_error">Critical error</string>
     <string name="arch_not_supported">This CPU architecture is not supported by afrd</string>
     <string name="only_amlogic">"This application supports only AmLogic SoC based
@@ -24,19 +22,29 @@
     <string name="prefs_log_file">Log file name</string>
     <string name="prefsum_log_file">Full path to log file (/data/local/&#8230; recommended)</string>
     <string name="prefs_log_enable">Enable logging</string>
-    <string name="prefsum_log_enable">Auto Frame Rate daemon will register its activity in a log file</string>
+    <string name="prefsum_log_enable">Auto Frame Rate daemon will register its activity in a log
+        file
+    </string>
     <string name="prefs_settings_cmd">Android system settings command</string>
-    <string name="prefsum_settings_cmd">The command used to query Android system settings. Set to empty
-        to disable usage of Android settings.
+    <string name="prefsum_settings_cmd">The command used to query Android system settings. Set to
+        empty to disable usage of Android settings.
     </string>
     <string name="prefs_settings_enable">Android setting used to enable AutoFrameRate</string>
-    <string name="prefsum_settings_enable">The name of the Android setting used to enable AutoFrameRate, usually key_hdmi_selfadaption</string>
+    <string name="prefsum_settings_enable">The name of the Android setting used to enable
+        AutoFrameRate, usually key_hdmi_selfadaption
+    </string>
     <string name="prefs_mode_prefer_exact">Prefer exact refresh rates</string>
-    <string name="prefsum_mode_prefer_exact">Prefer either 50/25Hz for 25fps movies and 60/30Hz for 30fps movies</string>
+    <string name="prefsum_mode_prefer_exact">Prefer either 50/25Hz for 25fps movies and 60/30Hz for
+        30fps movies
+    </string>
     <string name="prefs_mode_use_fract">Fractional refresh rate policy</string>
-    <string name="prefsum_mode_use_fract">Tell AFRd to use fractional (23.976, 29.97, 59.94Hz) or integer refresh rates, or both</string>
+    <string name="prefsum_mode_use_fract">Tell AFRd to use fractional (23.976, 29.97, 59.94Hz) or
+        integer refresh rates, or both
+    </string>
     <string name="prefs_mode_blacklist_rates">Blacklisted refresh rates</string>
-    <string name="prefsum_mode_blacklist_rates">Enter numeric refresh rates separated by spacs, e.g. 23.976 25</string>
+    <string name="prefsum_mode_blacklist_rates">Enter numeric refresh rates separated by spacs, e.g.
+        23.976 25
+    </string>
     <string name="prefs_mode_extra">Extra supported video modes</string>
     <string name="prefsum_mode_extra">Additional video modes if your TV provides incomplete EDID
         info (such as 1080p25hz etc)
@@ -45,19 +53,20 @@
     <string name="prefsum_cs_select">The rules to select color space depending on video mode name
     </string>
     <string name="prefs_switch_delay_on">ON switch delay</string>
-    <string name="prefsum_switch_delay_on">The delay in ms to wait after movie starts before detecting
-        movie framerate
+    <string name="prefsum_switch_delay_on">The delay in ms to wait after movie starts before
+        detecting movie framerate
     </string>
     <string name="prefs_switch_delay_off">OFF switch delay</string>
-    <string name="prefsum_switch_delay_off">The delay in ms to wait before restoring original refresh
-        rate after movie ends
+    <string name="prefsum_switch_delay_off">The delay in ms to wait before restoring original
+        refresh rate after movie ends
     </string>
     <string name="prefs_switch_delay_retry">Detect FPS retry delay</string>
-    <string name="prefsum_switch_delay_retry">The delay between retries if movie frame rate cannot be
-        determined
+    <string name="prefsum_switch_delay_retry">The delay between retries if movie frame rate cannot
+        be determined
     </string>
     <string name="prefs_switch_timeout">Detect FPS timeout</string>
-    <string name="prefsum_switch_timeout">The time to give up if movie framerate cannot be determined
+    <string name="prefsum_switch_timeout">The time to give up if movie framerate cannot be
+        determined
     </string>
     <string name="prefs_switch_blackout">Screen off delay</string>
     <string name="prefsum_switch_blackout">The delay in ms to turn display off after movie starts
@@ -94,6 +103,7 @@
     <string name="menu_status">Status</string>
     <string name="menu_log">Log</string>
     <string name="menu_settings">Settings</string>
+    <string name="menu_about">About</string>
     <string name="menu_desc_status">Show current Auto Frame Rate status</string>
     <string name="menu_desc_log">Display log of the running daemon</string>
     <string name="menu_desc_settings">Change the way Auto Frame Rate works</string>
@@ -111,4 +121,22 @@
     <string name="log_title">Log file: %s %s</string>
     <string name="log_is_off">LOGGING IS DISABLED</string>
     <string name="notif_channel">AFRd status notification</string>
+    <string name="about_history">Version history</string>
+    <string name="about_authors">Program made by</string>
+    <string name="about_me">Andrey Zabolotnyi / anpaza @ 4pda</string>
+    <string name="about_thanks">Special thanks to</string>
+    <string name="about_kigba" translatable="false">kigba @ 4pda</string>
+    <string name="about_sasvlad" translatable="false">sasvlad @ 4pda</string>
+    <string name="about_full_length" translatable="false">full-length @ 4pda</string>
+    <string name="about_yadoff" translatable="false">yadoff @ 4pda</string>
+    <string name="about_serge_kononoff" translatable="false">serge_kononoff @ 4pda</string>
+    <string name="about_testing">Testing</string>
+    <string name="about_supporter">Supporter</string>
+    <string name="menu_desc_about">Authors, version history</string>
+    <string name="prefs_toast">Toast refresh rate on switch</string>
+    <string name="prefsum_toast">Show a small pop-up notification after display refresh rate changes
+    </string>
+    <string name="menu_faq">FAQ</string>
+    <string name="menu_desc_faq">Frequently Asked Questions</string>
+    <string name="faq_title"><![CDATA[Frequently Asked Questions & Tips]]></string>
 </resources>
