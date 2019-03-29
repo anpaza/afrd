@@ -1,4 +1,4 @@
-0.2.5
+0.2.5 *UNRELEASED*
 
     Now daemon checks if another daemon is already running and won't
     run a second copy.
