@@ -4,7 +4,6 @@
 #include <errno.h>
 
 #include "afrd.h"
-#include "settings.h"
 
 const char *cfg_get_str (const char *key, const char *defval)
 {

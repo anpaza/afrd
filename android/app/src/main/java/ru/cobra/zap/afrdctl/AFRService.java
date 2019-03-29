@@ -22,9 +22,11 @@ public class AFRService extends Service
     public static final int NOTIF_STATUS_ID = 1;
     public static final String NOTIF_CHANNEL = "AFRd";
     private Handler mTimer = new Handler ();
+    private Handler mHzTimer = new Handler ();
     private Control mControl;
     private Status mStatus = new Status ();
     private int oldRefreshRate = -1;
+    private boolean oldBlackScreen = false;
     private SharedPreferences mOptions;
 
     @Override
@@ -74,15 +76,17 @@ public class AFRService extends Service
         if (!mStatus.refresh ())
             return;
 
-        if (oldRefreshRate != mStatus.mCurrentHz)
+        if ((oldRefreshRate != mStatus.mCurrentHz) ||
+            (oldBlackScreen != mStatus.mBlackened))
         {
-            boolean show_toast = (oldRefreshRate != -1) &&
+            boolean show_toast = (oldRefreshRate != -1) && !mStatus.mBlackened &&
                 mOptions.getBoolean ("toast_hz", true);
 
             oldRefreshRate = mStatus.mCurrentHz;
+            oldBlackScreen = mStatus.mBlackened;
 
             if (show_toast)
-                mTimer.post (new Runnable ()
+                mHzTimer.postDelayed (new Runnable ()
                 {
                     final int current_hz = mStatus.mCurrentHz;
 
@@ -93,7 +97,7 @@ public class AFRService extends Service
                             Status.hz2str (getResources (), current_hz),
                             Toast.LENGTH_LONG).show ();
                     }
-                });
+                }, 1000);
         }
 
         // When user presses the notification, the main activity shows up

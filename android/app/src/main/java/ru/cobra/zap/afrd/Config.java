@@ -33,8 +33,6 @@ public class Config
         itemType.put ("enable", TYPE_BOOL);
         itemType.put ("log.enable", TYPE_BOOL);
         itemType.put ("log.file", TYPE_STR);
-        itemType.put ("settings.cmd", TYPE_STR);
-        itemType.put ("settings.enable", TYPE_STR);
         itemType.put ("mode.prefer.exact", TYPE_BOOL);
         itemType.put ("mode.use.fract", TYPE_STR);
         itemType.put ("mode.blacklist.rates", TYPE_STR);

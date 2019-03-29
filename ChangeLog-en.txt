@@ -1,4 +1,4 @@
-0.2.5
+0.2.5 *UNRELEASED*
 
     Now daemon checks if another daemon is already running and won't
     run a second copy.
@@ -14,6 +14,9 @@
     Added the obligatory 'About' screen.
 
     Added the 'Frequently Asked Questions' screen.
+
+    Removed dependency of Android setting key_hdmi_selfadaptation,
+    now there are many other ways to disable afrd.
 
 0.2.4 Sun Mar 10 18:22:32 2019 +0300
 

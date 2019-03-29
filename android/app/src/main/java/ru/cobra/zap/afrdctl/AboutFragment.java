@@ -48,18 +48,29 @@ public class AboutFragment extends Fragment
         animate ();
 
         TextView whatsnew = root.findViewById (R.id.whatsnew);
+        whatsnew.setText (readFileJoinLines (R.raw.changelog));
+
+        return root;
+    }
+
+    private String readFileJoinLines (int resid)
+    {
         try
         {
-            InputStream is = getResources ().openRawResource (R.raw.changelog);
+            InputStream is = getResources ().openRawResource (resid);
             byte[] buff = new byte[is.available ()];
-            if (is.read (buff) >= 0)
-                whatsnew.setText (new String (buff, StandardCharsets.UTF_8));
+            if (is.read (buff) < 0)
+                return "";
+
+            String ret = new String (buff, StandardCharsets.UTF_8);
+            // Remove newlines not followed by another newline
+            return ret.replaceAll (" *([^\n])\n +", "$1 ");
         }
         catch (IOException ignored)
         {
         }
 
-        return root;
+        return "";
     }
 
     private void animate ()

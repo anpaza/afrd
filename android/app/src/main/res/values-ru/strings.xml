@@ -49,14 +49,14 @@
         ввести дополнительные поддерживаемые видеорежимы, например: 1080p25hz и т.п.
     </string>
     <string name="prefs_cs_select">Правила выбора цветового пространства</string>
-    <string name="prefsum_cs_select">Правила для выбора цветового пространства по имени
-        видеорежима
+    <string name="prefsum_cs_select">Правила для выбора цветового пространства по имени видеорежима
     </string>
     <string name="prefs_switch_delay_on">Задержка ВКЛ</string>
     <string name="prefsum_switch_delay_on">Задержка в мс перед запуском определения частоты видео
     </string>
     <string name="prefs_switch_delay_off">Задержка ВЫКЛ</string>
-    <string name="prefsum_switch_delay_off">Задержка в мс перед восстановлением исходной частоты
+    <string name="prefsum_switch_delay_off">Задержка в мс перед восстановлением исходной частоты.
+        Установите в 0 чтобы afrd не возвращал исходную частоту вертикальной развёртки.
     </string>
     <string name="prefs_switch_delay_retry">Задержка повторного определения частоты кадров</string>
     <string name="prefsum_switch_delay_retry">Задержка перед повторным определением частоты кадров
@@ -130,7 +130,9 @@
     <string name="about_supporter">Болельщик</string>
     <string name="menu_desc_about">Авторы, история версий</string>
     <string name="prefs_toast">Показ частоты развёртки при изменении</string>
-    <string name="prefsum_toast">При изменении показать частоту развёртки в маленьком всплывающем окне</string>
+    <string name="prefsum_toast">При изменении показать частоту развёртки в маленьком всплывающем
+        окне
+    </string>
     <string name="menu_faq">ЧАВО</string>
     <string name="menu_desc_faq">ЧАсто задаваемые ВОпросы</string>
     <string name="faq_title">Часто Задаваемые Вопросы и полезные советы</string>

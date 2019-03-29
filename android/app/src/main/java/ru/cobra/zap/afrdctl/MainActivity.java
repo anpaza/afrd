@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -19,7 +20,10 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.PreferenceScreen;
 import android.util.ArrayMap;
+import android.util.DisplayMetrics;
+import android.view.Display;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
@@ -50,6 +54,9 @@ public class MainActivity extends Activity
     protected void onCreate (Bundle savedInstanceState)
     {
         super.onCreate (savedInstanceState);
+
+        limitDpi ();
+
         setContentView (R.layout.activity_main);
 
         mPrefStack = new Vector<> ();
@@ -149,6 +156,31 @@ public class MainActivity extends Activity
         });
 
         return true;
+    }
+
+    public void limitDpi ()
+    {
+        Configuration configuration = getResources ().getConfiguration ();
+
+        if ((configuration.densityDpi <= 240) &&
+            (configuration.fontScale <= 1.30F))
+            return;
+
+        // Don't allow too large fonts otherwise it's all unusable & unreadable
+        if (configuration.densityDpi > 340)
+            configuration.densityDpi = 340;
+        if (configuration.fontScale > 1.30F)
+            configuration.fontScale = 1.30F;
+
+        DisplayMetrics metrics = getResources ().getDisplayMetrics ();
+        WindowManager wm = (WindowManager) getSystemService (WINDOW_SERVICE);
+        if (wm == null)
+            return;
+
+        Display dpy = wm.getDefaultDisplay ();
+        dpy.getMetrics (metrics);
+        metrics.scaledDensity = configuration.fontScale * metrics.density;
+        getBaseContext ().getResources ().updateConfiguration (configuration, metrics);
     }
 
     private boolean prepareConfig ()

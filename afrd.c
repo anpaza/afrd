@@ -6,7 +6,6 @@
 #include "afrd.h"
 #include "uevent_filter.h"
 #include "colorspace.h"
-#include "settings.h"
 
 #define __USE_GNU
 #include <unistd.h>
@@ -24,25 +23,24 @@
 	for ((cmsg) = CMSG_FIRSTHDR(mh); (cmsg); (cmsg) = CMSG_NXTHDR((mh), (cmsg)))
 
 const char *g_hdmi_dev = NULL;
-const char *g_hdmi_state = NULL;
-int g_uevent_sock = -1;
 const char *g_mode_path = NULL;
-const char *g_vdec_sysfs = NULL;
-const char *g_settings_enable = NULL;
 
-int g_switch_delay_on;
-int g_switch_delay_off;
-int g_switch_delay_retry;
-int g_switch_timeout;
-int g_switch_blackout;
+static const char *g_hdmi_state = NULL;
+static int g_uevent_sock = -1;
+static const char *g_vdec_sysfs = NULL;
 
-int g_mode_prefer_exact;
-int g_mode_use_fract;
-int g_mode_blacklist_rates [10];
-int g_mode_blacklist_rates_count;
+static int g_switch_delay_on;
+static int g_switch_delay_off;
+static int g_switch_delay_retry;
+static int g_switch_timeout;
+static int g_switch_blackout;
 
-bool g_enable;                 // enabled in config file
-bool g_settings_enabled;        // enabled in android settings
+static int g_mode_prefer_exact;
+static int g_mode_use_fract;
+static int g_mode_blacklist_rates [10];
+static int g_mode_blacklist_rates_count;
+
+static bool g_enable;                 // enabled in config file
 
 static uevent_filter_t g_filter_frhint;
 static uevent_filter_t g_filter_vdec;
@@ -133,7 +131,7 @@ static bool uevent_open (int buf_sz)
 
 static void update_stats ()
 {
-	g_afrd_stats.enabled = g_enable && g_settings_enabled;
+	g_afrd_stats.enabled = g_enable;
 	g_afrd_stats.switched = (g_state.orig_mode.name [0] != 0);
 	g_afrd_stats.blackened = g_blackened;
 	g_afrd_stats.current_hz = display_mode_hz (&g_current_mode);
@@ -447,7 +445,7 @@ static void framerate_switch ()
 
 	// check if user has disabled "HDMI self-adaptation" which is
 	// the Chinese synonym for AFR
-	if (!g_enable || !g_settings_enabled) {
+	if (!g_enable) {
 		trace (1, "User disabled AFR\n");
 		framerate_fail ();
 		return;
@@ -579,9 +577,17 @@ static void delayed_framerate_switch (bool restore, int hz, const char *modalias
 
 	mstime_t delay = restore ? g_switch_delay_off : g_switch_delay_on;
 
-	if (!delay) {
-		trace (1, "Refresh rate %s disabled by user\n",
-			restore ? "restoration" : "setting");
+	if (restore && !g_switch_delay_off) {
+		trace (1, "Refresh rate restoration disabled by user\n");
+
+		g_state.restore = true;
+		g_state.hz = hz;
+		mstime_disable (&g_state.hz_ost);
+		mstime_disable (&g_ost_switch);
+
+		framerate_fail ();
+		memset (&g_state, 0, sizeof (g_state));
+		update_stats ();
 		return;
 	}
 
@@ -602,6 +608,7 @@ static void delayed_framerate_switch (bool restore, int hz, const char *modalias
 		// start collecting starts all over again
 		g_state.n_hz_samples = 0;
 	}
+
 	// if we known desired hz, don't overwrite with 0 that may come from vdec uevent
 	if (hz)
 		g_state.hz = hz;
@@ -614,7 +621,7 @@ static void delayed_framerate_switch (bool restore, int hz, const char *modalias
 		mstime_arm (&g_state.hz_ost, g_switch_timeout);
 		// when movie starts, disable screen until we switch to actual frame rate
 		if (!g_state.orig_mode.name [0] && g_switch_blackout &&
-		    g_enable && g_settings_enabled)
+		    g_enable)
 			mstime_arm (&g_ost_blackout, g_switch_blackout);
 	}
 }
@@ -850,9 +857,6 @@ int afrd_run ()
 	mstime_arm (&g_ost_config, 1);
 	time_t config_mtime = mtime (g_config);
 
-	g_settings_enabled = !g_settings_enable ||
-		(settings_get_int (g_settings_enable, 1) != 0);
-
 	update_stats ();
 
 	while (!g_shutdown) {
@@ -905,10 +909,6 @@ int afrd_run ()
 			if (!mstime_enabled (&g_ost_blackout) &&
 			    !mstime_enabled (&g_ost_switch) &&
 			    !mstime_enabled (&g_ost_hdmi)) {
-				// read android settings when idle since this is a slow process
-				g_settings_enabled = !g_settings_enable ||
-					(settings_get_int (g_settings_enable, 1) != 0);
-
 				time_t cmt = mtime (g_config);
 				if ((cmt != 0) && (cmt != config_mtime)) {
 					trace (1, "config file %s changed, reloading\n", g_config);
@@ -933,7 +933,6 @@ int afrd_init ()
 		return -1;
 	}
 
-	settings_init ();
 	shmem_init (false);
 
 	int log_enable = (cfg_get_int ("log.enable", 1) != 0);
@@ -945,7 +944,6 @@ int afrd_init ()
 	trace (1, "\tactive config file: %s\n", g_config);
 
 	g_enable = (cfg_get_int ("enable", 1) != 0);
-	g_settings_enable = cfg_get_str ("settings.enable", NULL);
 
 	g_hdmi_dev = cfg_get_str ("hdmi.sysfs", DEFAULT_HDMI_DEV);
 	g_hdmi_state = cfg_get_str ("hdmi.state", DEFAULT_HDMI_STATE);
@@ -998,7 +996,6 @@ void afrd_fini ()
 	g_mode_blacklist_rates_count = 0;
 
 	g_enable = false;
-	g_settings_enable = NULL;
 	g_hdmi_dev = NULL;
 	g_hdmi_state = NULL;
 	g_mode_path = NULL;
@@ -1013,6 +1010,5 @@ void afrd_fini ()
 	}
 
 	shmem_fini ();
-	settings_fini ();
 	trace_log (NULL);
 }
