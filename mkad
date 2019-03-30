@@ -1,0 +1,10 @@
+#!/bin/sh
+
+DEBUG="NDK_DEBUG=1"
+#V=1
+
+export NDK=/usr/local/app/Android/SDK/ndk-bundle
+$NDK/ndk-build $DEBUG $* || exit $?
+
+adb push obj/local/armeabi-v7a/afrd /data/local/zap
+/usr/local/app/Android/SDK/ndk-bundle/prebuilt/linux-x86_64/bin/gdb obj/local/armeabi-v7a/afrd

@@ -47,6 +47,7 @@ static uevent_filter_t g_filter_vdec;
 static uevent_filter_t g_filter_hdmi;
 
 static strlist_t g_vdec_blacklist;
+static strlist_t g_frhint_vdec_blacklist;
 
 /**
  * The one-shot timer used to switch display mode.
@@ -76,7 +77,50 @@ static mstime_t g_ost_blackout;
 static mstime_t g_ost_config;
 
 /**
- * What mode should we set when g_ost_switch expires
+ * Available sources for fps values
+ */
+typedef enum
+{
+	// FRAME_RATE_HINT should be immediately usable
+	SRC_FRH,
+	// dump_vdec_chunks is more reliable than others, only 2 confirmations
+	SRC_CHUNKS,
+	// dump_vdec_blocks is less reliable, so 3 confirmations
+	SRC_BLOCKS,
+	// need 4 confirmations to accept vdec_status
+	SRC_VDEC,
+
+	// number of fps sources
+	SRC_COUNT
+} hz_source_t;
+
+static const uint8_t src_weight [SRC_COUNT] =
+{
+	100,	// FRH
+	50,	// CHUNKS
+	34,	// BLOCKS
+	25,	// VDEC
+};
+
+// accept hz when weight sum up to this
+#define ACCEPT_HZ_WEIGHT        100
+
+// minimum sane refresh rate, .8 fixed-point
+#define HZ_MIN		FP8 ( 10,000)
+#define HZ_MAX		FP8 (100,000)
+
+typedef struct
+{
+	// last seen value from this source
+	int hz;
+	// total weight of hz samples
+	int weight;
+	// expiration timer for collecting data from this source
+	mstime_t timeout;
+} hz_stat_t;
+
+/**
+ * Frame rate detector data.
  */
 static struct
 {
@@ -86,19 +130,18 @@ static struct
 	int hz;
 	// the initial video mode (this mode is set when restore==true)
 	display_mode_t orig_mode;
+	// active video decoder driver name
+	char modalias [32];
 	// hz detection timeout
 	mstime_t hz_ost;
-	// number of hz samples from dump_vdec_blocks
-	int n_hz_samples;
-	// hz samples from dump_vdec_blocks
-	int hz_samples [3];
-	// hz sample from vdec_status
-	int hz_sample;
+
+	// we accumulate fps data from every source
+	hz_stat_t hz_stat [SRC_COUNT];
+
 	// a stamp to detect when dump_vdec_blocks stays still
 	int hz_samples_stamp;
-	// last time when we used vdec_chunks
-	mstime_t ost_chunks;
 } g_state;
+
 
 static bool uevent_open (int buf_sz)
 {
@@ -148,48 +191,121 @@ static bool rate_is_blacklisted (int rate)
 	return false;
 }
 
+// note! this function considers fractional rate "equal" to integer rate!
+// it is a rough test to filter off data that is way off the mainline.
 static bool hz_close (int hz1, int hz2)
 {
-	int rate = (hz1 * 1000 + hz2 / 2) / hz2;
-	return abs (rate - 1000) < 2;
+	// if is +- 1 units, consider it a rounding error
+	if (abs (hz1 - hz2) <= 1)
+		return true;
+
+	// if they are no more than 0.5% apart, it's a rounding error
+	return abs (10000 - ((hz1 * 10000 + hz2 / 2) / hz2)) <= 50;
 }
 
-static int average_hz_samples ()
+// round hz to nearest known standard framerate
+static int hz_round (int hz)
 {
-	if (!g_state.n_hz_samples)
-		return 0;
+	static short sane_hz [] =
+	{
+		FP8 (23,976), FP8 (24,000),
+		FP8 (25,000),
+		FP8 (29,970), FP8 (30,000),
+		FP8 (50,000),
+		FP8 (59,940), FP8 (60,000),
+	};
 
-	int ave = 0;
-	for (int i = 0; i < g_state.n_hz_samples; i++)
-		ave += g_state.hz_samples [i];
+	int closest_hz = 0;
+	int closest_delta = 99999999;
 
-	return ave / g_state.n_hz_samples;
+	for (size_t i = 0; i < ARRAY_SIZE (sane_hz); i++) {
+		int shz = sane_hz [i];
+		int delta = abs (shz - hz);
+		if (delta < closest_delta) {
+			closest_delta = delta;
+			closest_hz = shz;
+		}
+	}
+
+	dtrace (3, "\t> hz "HZ_FMT" closest "HZ_FMT"\n", HZ_ARGS(hz), HZ_ARGS(closest_hz));
+
+	// if frame rates are close enough, consider them equal
+	if (hz_close (hz, closest_hz))
+		return closest_hz;
+
+	// otherwise, invalid frame rate
+	return 0;
 }
 
-static bool enough_hz_samples (int hz, int type)
+// accumulate fps data from different sources
+static void accumulate_fps (int hz, hz_source_t src)
 {
-	for (int i = 0; i < g_state.n_hz_samples; i++)
-		if (!hz_close (hz, g_state.hz_samples [i])) {
-			g_state.n_hz_samples = 0;
-			g_state.hz_sample = 0;
-			break;
+	hz_stat_t *stat = &g_state.hz_stat [src];
+	if (stat->weight && !hz_close (hz, stat->hz)) {
+		g_state.hz_stat [src].weight = 0;
+		trace (2, "Resetting Hz weight\n");
+	}
+
+	int weight = src_weight [src];
+
+	stat->hz = hz;
+	stat->weight += weight;
+	mstime_arm (&stat->timeout, g_switch_delay_retry * 2);
+
+	trace (2, "Accumulating "HZ_FMT"fps src %d weight %d total %d\n",
+		HZ_ARGS (hz), src, weight, stat->weight);
+}
+
+// guess the best fps from accumulated data, more insistent if last_chance is true
+static int best_fps (bool last_chance)
+{
+	hz_stat_t *best_stat = NULL;
+	int best_prio = 0;
+	// if last chance, use any detection that we're at least half sure
+	int accept_weight = last_chance ? ACCEPT_HZ_WEIGHT/2 : ACCEPT_HZ_WEIGHT;
+
+	for (int i = 0; i < SRC_COUNT; i++) {
+		if (best_prio > src_weight [i])
+			continue;
+
+		hz_stat_t *stat = &g_state.hz_stat [i];
+		if (stat->weight == 0)
+			continue;
+
+		if (last_chance) {
+			// last chance to detect fps
+			dtrace (3, "last_chance src %d weight %d\n", i, stat->weight);
+			if (stat->weight < accept_weight)
+				continue;
+		} else {
+			// we still have time, wait best src that has a chance to finish
+			if (!mstime_enabled (&stat->timeout) ||
+			    mstime_expired (&stat->timeout))
+				continue;
 		}
 
-	if (type == 1)
-		g_state.hz_sample = hz;
+		best_prio = src_weight [i];
+		best_stat = stat;
+	}
 
-	g_state.hz_samples [g_state.n_hz_samples++] = hz;
-	if (g_state.n_hz_samples < ARRAY_SIZE (g_state.hz_samples))
-		return false;
+	if (best_stat)
+		dtrace (3, "best "HZ_FMT"Hz weight %d timeout %d\n",
+		        HZ_ARGS (best_stat->hz), best_stat->weight,
+		        mstime_left (&best_stat->timeout));
 
-	g_state.hz = g_state.hz_sample ? g_state.hz_sample : average_hz_samples ();
-	g_state.n_hz_samples = 0;
-	g_state.hz_sample = 0;
-	return true;
+	if (!best_stat || (best_stat->weight < accept_weight))
+		return 0;
+
+	return best_stat->hz;
 }
 
 static bool query_vdec_blocks ()
 {
+	if (!g_vdec_sysfs)
+		return false;
+
+	trace (2, "Querying vdec_blocks\n");
+
 	char line [200];
 	snprintf (line, sizeof (line), "%s/dump_vdec_blocks", g_vdec_sysfs);
 	FILE *vsf = fopen (line, "r");
@@ -205,18 +321,22 @@ static bool query_vdec_blocks ()
 	unsigned nframes = find_ulong (line, ",frames:", &ok);
 	unsigned timeint = find_ulong (line, ",dur:", &ok);
 
-	// if we don't have enough stats, don't take it into account
-	if (ok && nframes >= 5 && timeint > 120 &&
-	    g_state.hz_samples_stamp != dsize) {
-		int hz = nframes * 256000 / timeint;
-		g_state.hz_samples_stamp = dsize;
-		trace (3, "\t%d frames played over last %dms at %u.%02ufps\n",
-			nframes, timeint, (hz) >> 8, (100 * ((hz) & 255)) >> 8);
-		if (enough_hz_samples (hz, 0))
-			return true;
-	}
+	dtrace (3, "\t> dsize %u frames %u dur %u\n", dsize, nframes, timeint);
 
-	return false;
+	// if we don't have enough stats, don't take it into account
+	if (!ok || nframes < 5 || timeint < 120 ||
+	    g_state.hz_samples_stamp == dsize)
+		return false;
+
+	g_state.hz_samples_stamp = dsize;
+	int hz = hz_round ((nframes * 256000 + timeint / 2) / timeint);
+	if (hz == 0)
+		return false;
+
+	trace (2, "\t%d frames played over last %dms at "HZ_FMT"fps\n",
+		nframes, timeint, HZ_ARGS (hz));
+	accumulate_fps (hz, SRC_BLOCKS);
+	return true;
 }
 
 static int compare_pts (const void *a, const void *b)
@@ -228,16 +348,21 @@ static int compare_pts (const void *a, const void *b)
 
 static bool query_vdec_chunks ()
 {
+	if (!g_vdec_sysfs)
+		return false;
+
+	trace (2, "Querying vdec_chunks\n");
+
 	char buff [4096];
 	snprintf (buff, sizeof (buff), "%s/dump_vdec_chunks", g_vdec_sysfs);
 	int vsh = open (buff, O_RDONLY);
 	if (vsh < 0)
-		goto failed;
+		return false;
 
 	int size = read (vsh, buff, sizeof (buff) - 1);
 	close (vsh);
 	if (size < 100)
-		goto failed;
+		return false;
 
 	buff [size] = 0;
 	char *cur = buff;
@@ -265,7 +390,7 @@ static bool query_vdec_chunks ()
 	}
 
 	if (pts_size < 5)
-		goto failed;
+		return false;
 
 	qsort (pts, pts_size, sizeof (pts [0]), compare_pts);
 
@@ -295,37 +420,25 @@ static bool query_vdec_chunks ()
 	}
 
 	if (avg_count < 3)
-		goto failed;
-
-	int hz = (avg_count * 256 * 1000) / ((avg_pts + 500) / 1000);
-	trace (1, "Average from %d video chunks %u.%02u fps\n",
-		avg_count, (hz) >> 8, (100 * ((hz) & 255)) >> 8);
-	// this gives fps with very high precision, so don't use other sources
-	enough_hz_samples (hz, 0);
-	mstime_arm (&g_state.ost_chunks, g_switch_delay_retry);
-	return true;
-
-failed:
-	// if we can't see chunks stats, let's hope kernel can do something
-	// but only if chunks are missing for two retry times
-	if (mstime_enabled (&g_state.ost_chunks) &&
-	    !mstime_expired (&g_state.ost_chunks))
 		return false;
 
-	mstime_disable (&g_state.ost_chunks);
-	return query_vdec_blocks ();
+	dtrace (3, "\t> %d pts in %d us, base pts %d\n", avg_count, avg_pts, base_pts);
+
+	int hz = hz_round ((avg_count * 256 * 1000) / (avg_pts / 1000));
+	if (hz == 0)
+		return false;
+
+	// this gives fps with very high precision
+	accumulate_fps (hz, SRC_CHUNKS);
+	return true;
 }
 
-static void query_vdec ()
+static bool query_vdec ()
 {
 	if (!g_vdec_sysfs)
-		return;
+		return false;
 
-	trace (2, "Querying movie parameters from vdec\n");
-
-	// some decoders provide additional stats we can use to cross-check fps
-	if (query_vdec_chunks ())
-		return;
+	trace (2, "Querying vdec_status\n");
 
 	char line [200];
 	snprintf (line, sizeof (line), "%s/vdec_status", g_vdec_sysfs);
@@ -333,11 +446,11 @@ static void query_vdec ()
 	if (!vsf) {
 		trace (1, "Failed to open %s/vdec_status\n", g_vdec_sysfs);
 		g_vdec_sysfs = NULL;
-		return;
+		return false;
 	}
 
 	// the values we're going to extract
-	long fps = 0, frame_dur = 0;
+	int fps = 0, frame_dur = 0;
 
 	while (fgets (line, sizeof (line), vsf)) {
 		// Bionic sscanf sucks badly, so parse the string manually...
@@ -359,7 +472,7 @@ static void query_vdec ()
 		cur = strchr (cur, 0);
 		strip_trailing_spaces (cur, val);
 
-		trace (3, "\tattr [%s] val [%s]\n", attr, val);
+		dtrace (4, "\tattr [%s] val [%s]\n", attr, val);
 
 		if (strcmp (attr, "frame rate") == 0) {
 			char *endp;
@@ -368,24 +481,27 @@ static void query_vdec ()
 			if ((*endp != 0) && (strcmp (endp, "fps") != 0)) {
 				trace (2, "\tgarbage at end of 'frame rate': [%s]\n", endp);
 				fps = 0;
-			}
+			} else
+				trace (3, "\t> frame rate %d\n", fps);
 		} else if (strcmp (attr, "frame dur") == 0) {
 			char *endp;
 			frame_dur = strtol (val, &endp, 10);
 			if (*endp != 0) {
 				trace (2, "\tgarbage at end of 'frame dur': [%s]\n", endp);
 				frame_dur = 0;
-			}
+			} else
+				trace (3, "\t> frame dur %d\n", frame_dur);
 		}
 	}
 
 	fclose (vsf);
 
-	// Prefer frame_dur over fps, but sometimes it's 0
+	// Prefer frame_dur over fps, but sometimes it's 0 and sometimes it's insane
 	int hz = 0;
 	if (frame_dur)
-		hz = (256*96000 + frame_dur / 2) / frame_dur;
-	else if ((fps > 0) && (fps <= 1000)) {
+		hz = hz_round ((256*96000 + frame_dur / 2) / frame_dur);
+
+	if ((hz == 0) && (fps > 0) && (fps <= 1000)) {
 		switch (fps) {
 			case 23: hz = (2997 * 256 + 62) / 125; break;
 			case 29: hz = (2997 * 256 + 50) / 100; break;
@@ -394,8 +510,11 @@ static void query_vdec ()
 		}
 	}
 
-	if (hz && enough_hz_samples (hz, 1))
-		return;
+	if (!hz)
+		return false;
+
+	accumulate_fps (hz, SRC_VDEC);
+	return true;
 }
 
 static void blackout ()
@@ -419,12 +538,12 @@ static void framerate_fail ()
 	if (!g_blackened)
 		return;
 
-	if (g_state.orig_mode.name [0]) {
+	if (g_state.orig_mode.name [0])
 		display_mode_switch (&g_state.orig_mode);
-		memset (&g_state, 0, sizeof (g_state));
-	} else
+	else
 		display_mode_switch (&g_current_mode);
 
+	memset (&g_state, 0, sizeof (g_state));
 	update_stats ();
 }
 
@@ -443,23 +562,28 @@ static void framerate_switch ()
 		return;
 	}
 
-	// check if user has disabled "HDMI self-adaptation" which is
-	// the Chinese synonym for AFR
 	if (!g_enable) {
 		trace (1, "User disabled AFR\n");
 		framerate_fail ();
 		return;
 	}
 
-	if (mstime_expired (&g_state.hz_ost)) {
-		trace (1, "Timeout detecting movie frame rate, giving up\n");
-		framerate_fail ();
-		return;
+	if ((g_state.hz == 0) &&
+	    mstime_expired (&g_state.hz_ost)) {
+		g_state.hz = best_fps (true);
+		if (g_state.hz == 0) {
+			trace (1, "Timeout detecting movie frame rate, giving up\n");
+			framerate_fail ();
+			return;
+		}
 	}
 
-	// if we don't known movie refresh rate, ask vdec
+	// ask every source until we have a valid refresh rate
 	if (g_state.hz == 0) {
+		query_vdec_chunks ();
+		query_vdec_blocks ();
 		query_vdec ();
+		g_state.hz = best_fps (false);
 		if (g_state.hz == 0) {
 			// Cannot determine movie frame rate, retry later
 			if (g_switch_delay_retry)
@@ -478,9 +602,8 @@ static void framerate_switch ()
 
 	trace (1, "Current mode is "DISPMODE_FMT"\n",
 		DISPMODE_ARGS (g_current_mode, display_mode_hz (&g_current_mode)));
-	trace (1, "Looking for display mode closest to %dx%d@%u.%02uHz\n",
-		g_current_mode.width, g_current_mode.height,
-		g_state.hz >> 8, (100 * (g_state.hz & 255)) >> 8);
+	trace (1, "Looking for display mode closest to %dx%d@"HZ_FMT"Hz\n",
+		g_current_mode.width, g_current_mode.height, HZ_ARGS (g_state.hz));
 
 	/* Find the video mode that:
 	 * a) Has same width and height and interlace flag
@@ -569,7 +692,7 @@ static void framerate_switch ()
  *      false to set refresh rate to match currently playing movie.
  * @param hz screen refresh rate in fixed-point 24.8 format if known,
  *      or 0 to ask movie refresh rate from vdec.
- * @param modalias the value of MODALIASE= uevent attribute (codec name)
+ * @param modalias the value of MODALIAS= uevent attribute (codec name)
  */
 static void delayed_framerate_switch (bool restore, int hz, const char *modalias)
 {
@@ -580,9 +703,6 @@ static void delayed_framerate_switch (bool restore, int hz, const char *modalias
 	if (restore && !g_switch_delay_off) {
 		trace (1, "Refresh rate restoration disabled by user\n");
 
-		g_state.restore = true;
-		g_state.hz = hz;
-		mstime_disable (&g_state.hz_ost);
 		mstime_disable (&g_ost_switch);
 
 		framerate_fail ();
@@ -592,26 +712,40 @@ static void delayed_framerate_switch (bool restore, int hz, const char *modalias
 	}
 
 	if (modalias) {
-		modalias += strskip (modalias, "platform:");
 		if (strlist_contains (&g_vdec_blacklist, modalias)) {
 			trace (1, "Blacklisted vdec %s, skipping AFR\n", modalias);
 			return;
 		}
 	}
 
-	trace (1, "Delaying switch to %u.%02u Hz by %d ms\n",
-		hz >> 8, (100 * (hz & 255)) >> 8, delay);
+	// save decoder name
+	if (modalias)
+		strncpy (g_state.modalias, modalias, sizeof (g_state.modalias));
 
 	if (g_state.restore != restore) {
 		g_state.restore = restore;
 		g_state.hz = hz;
-		// start collecting starts all over again
-		g_state.n_hz_samples = 0;
+		// start collecting stats all over again
+		memset (&g_state.hz_stat, 0, sizeof (g_state.hz_stat));
 	}
 
-	// if we known desired hz, don't overwrite with 0 that may come from vdec uevent
-	if (hz)
-		g_state.hz = hz;
+	// if refresh rate is going to be restored, and screen is black, do not delay
+	if (restore && g_blackened)
+		delay = g_switch_delay_on;
+
+	// if we known fps, use it
+	if (hz && (hz >= HZ_MIN) && (hz < HZ_MAX)) {
+		accumulate_fps (hz, SRC_FRH);
+		g_state.hz = best_fps (false);
+	}
+
+	if (g_state.hz)
+		trace (1, "Delaying switch to "HZ_FMT"Hz by %d ms\n",
+			HZ_ARGS (g_state.hz), delay);
+	else if (restore)
+		trace (1, "Delaying refresh rate restoration by %d ms\n", delay);
+	else
+		trace (1, "Starting framerate detection in %d ms\n", delay);
 
 	mstime_arm (&g_ost_switch, delay);
 
@@ -620,8 +754,8 @@ static void delayed_framerate_switch (bool restore, int hz, const char *modalias
 	else {
 		mstime_arm (&g_state.hz_ost, g_switch_timeout);
 		// when movie starts, disable screen until we switch to actual frame rate
-		if (!g_state.orig_mode.name [0] && g_switch_blackout &&
-		    g_enable)
+		if (g_enable && g_switch_blackout &&
+		    !g_state.hz && !g_state.orig_mode.name [0])
 			mstime_arm (&g_ost_blackout, g_switch_blackout);
 	}
 }
@@ -672,7 +806,7 @@ static void handle_uevent (char *msg, ssize_t size)
 		else if (strcmp (msg, "ACTION") == 0)
 			action = val;
 		else if (strcmp (msg, "MODALIAS") == 0)
-			modalias = val;
+			modalias = val + strskip (val, "platform:");
 
 		/* and count matches for every kind of uevent */
 		uevent_filter_match (&g_filter_frhint, msg, val);
@@ -687,6 +821,12 @@ static void handle_uevent (char *msg, ssize_t size)
 			char *end;
 			int frh = strtoul (frame_rate_hint, &end, 10);
 			if (frh && (!end || !*end)) {
+				if (strlist_contains (&g_frhint_vdec_blacklist, g_state.modalias)) {
+					trace (1, "Blacklisted vdec %s for FRAME_RATE_HINT, skipping\n",
+					       g_state.modalias);
+					return;
+				}
+
 				int fr_hz = (256*96000 + frh / 2) / frh;
 				delayed_framerate_switch (false, fr_hz, modalias);
 			}
@@ -782,7 +922,7 @@ static void blacklist_rates_load (const char *kw)
 			int irate = (int)(256.0 * rate + 0.5);
 			g_mode_blacklist_rates [g_mode_blacklist_rates_count] = irate;
 			g_mode_blacklist_rates_count++;
-			trace (2, "\t+ %u.%02uHz\n", irate >> 8, (100 * (irate & 255)) >> 8);
+			trace (2, "\t+ "HZ_FMT"Hz\n", HZ_ARGS (irate));
 		}
 
 		cur = next;
@@ -967,6 +1107,7 @@ int afrd_init ()
 
 	g_vdec_sysfs = cfg_get_str ("vdec.sysfs", DEFAULT_VDEC_SYSFS);
 	strlist_load (&g_vdec_blacklist, "vdec.blacklist", "vdec blacklist");
+	strlist_load (&g_frhint_vdec_blacklist, "frhint.vdec.blacklist", "frhint vdec blacklist");
 	uevent_filter_load (&g_filter_frhint, "uevent.filter.frhint");
 	uevent_filter_load (&g_filter_vdec, "uevent.filter.vdec");
 	uevent_filter_load (&g_filter_hdmi, "uevent.filter.hdmi");

@@ -82,8 +82,7 @@ public class MainActivity extends Activity
             !prepareConfig () ||
             !prepareDaemon () ||
             !prepareSuperuser ())
-            // Should never happen, but if it does, we're screwed
-            finishAndRemoveTask ();
+            ;
 
         addFragment (StatusFragment.create (), "status");
     }
@@ -191,9 +190,10 @@ public class MainActivity extends Activity
         if (!mControl.mIni.exists () ||
             (prefs.getInt ("afrd_ini_ver", -1) != versionCode))
         {
-            if (!mControl.extractConfig (this))
+            String res = mControl.extractConfig (this);
+            if (!res.isEmpty ())
             {
-                showMessage (R.string.msg_title_critical_error, R.string.only_amlogic);
+                showMessage (getString (R.string.msg_title_critical_error), res, null);
                 return false;
             }
 
@@ -234,10 +234,11 @@ public class MainActivity extends Activity
             (prefs.getString ("afrd_ver", "").equals (mPackageInfo.versionName)))
             return true;
 
-        if (!mControl.extractDaemon (this))
+        String res = mControl.extractDaemon (this);
+        if (!res.isEmpty ())
         {
-            showMessage (R.string.msg_title_critical_error, R.string.arch_not_supported);
-            return true;
+            showMessage (getString (R.string.msg_title_critical_error), res, null);
+            return false;
         }
 
         prefs.edit ().putString ("afrd_ver", mPackageInfo.versionName).apply ();

@@ -89,7 +89,6 @@ bool uevent_filter_match (uevent_filter_t *uevf, const char *attr, const char *v
 	for (int i = 0; i < uevf->size; i++)
 		if (strcmp (uevf->attr [i], attr) == 0) {
 			regmatch_t match [1];
-/*@*/trace (4, "\t  %s: matching [%s] against [%s]\n", uevf->name, value, uevf->rexval [i]);
 			if (regexec (&uevf->rex [i], value, 1, match, 0) == REG_NOMATCH)
 				continue;
 			// must match whole line

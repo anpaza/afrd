@@ -117,7 +117,8 @@ int display_modes_init ()
 	display_mode_get_current ();
 
 	// on some weird configs current video mode may not be listed in disp_cap
-	display_mode_add (&g_current_mode);
+	if (g_current_mode.name [0])
+		display_mode_add (&g_current_mode);
 
 	// add extra user-specified modes from config
 	strlist_t xmodes;

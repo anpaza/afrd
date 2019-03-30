@@ -21,8 +21,8 @@ import ru.cobra.zap.afrdctl.R;
 public class Control
 {
     private static final String AFRD_PID_FILE = "/dev/run/afrd.pid";
-    // this is also present on Android 8 & 9, so check for that first
-    private static final String SYSFS_ANDROID67 = "/sys/class/switch/hdmi/state";
+    // detect AmLogic kernels
+    private static final String SYSFS_AMLOGIC = "/sys/class/vdec/vdec_status";
     // this is present only on Android 8 & 9
     private static final String SYSFS_ANDROID89 = "/sys/class/switch/hdmi/cable.0/state";
 
@@ -96,31 +96,26 @@ public class Control
         return false;
     }
 
-    public boolean extractConfig (Context ctx)
+    public String extractConfig (Context ctx)
     {
         int res_id;
-        if (new File (SYSFS_ANDROID89).exists ())
-        {
+
+        if (!new File (SYSFS_AMLOGIC).exists ())
+            return ctx.getString (R.string.only_amlogic);
+        else if (new File (SYSFS_ANDROID89).exists ())
             // Android 8 or 9
             res_id = R.raw.afrd_8;
-        }
-        else if (new File (SYSFS_ANDROID67).exists ())
-        {
+        else
             // Android 6 or 7
             res_id = R.raw.afrd_7;
-        }
-        else
-        {
-            return false;
-        }
 
         if (!extractFile (ctx, res_id, mIni))
-            return false;
+            return ctx.getString (R.string.failed_copy_raw, mIni.getPath ());
 
-        return true;
+        return "";
     }
 
-    public boolean extractDaemon (Context ctx)
+    public String extractDaemon (Context ctx)
     {
         for (String arch : Build.SUPPORTED_ABIS)
         {
@@ -139,10 +134,12 @@ public class Control
                     continue;
             }
 
-            return extractFile (ctx, res_id, mAfrd);
+            if (!extractFile (ctx, res_id, mAfrd))
+                return ctx.getString (R.string.failed_copy_raw, mAfrd.getPath ());
+            return "";
         }
 
-        return false;
+        return ctx.getString (R.string.arch_not_supported);
     }
 
     /**

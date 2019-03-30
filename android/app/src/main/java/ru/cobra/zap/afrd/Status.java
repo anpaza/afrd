@@ -24,6 +24,8 @@ public class Status
     private int mShmSize;
     private int mLastStamp;
     private boolean mLastStampValid = false;
+    /// true if service should give up because of SELinux and such
+    private boolean mGiveUp = false;
 
     /// true if afrd is enabled
     public boolean mEnabled;
@@ -61,6 +63,9 @@ public class Status
      */
     public boolean open ()
     {
+        if (mGiveUp)
+            return false;
+
         close ();
 
         try
@@ -71,8 +76,11 @@ public class Status
             mShm.order (ByteOrder.LITTLE_ENDIAN);
             return true;
         }
-        catch (IOException ignored)
+        catch (IOException err)
         {
+            if (err.getCause ().getMessage ().contains ("EACCES"))
+                mGiveUp = true;
+
             return false;
         }
     }
@@ -104,7 +112,7 @@ public class Status
      */
     public boolean refresh ()
     {
-        if (mShm == null)
+        if (mShm == null || mGiveUp)
             return false;
 
         // check if buffer changed since our last update

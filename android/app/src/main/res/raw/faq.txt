@@ -1,6 +1,6 @@
-? I still see jitter in videos. Why?
+? I still see "judder" in videos. Why?
 ? Despite the fact that AFRd correctly switches refresh rate, I still
-? see frame jitter on playback.
+? see frame judder on playback.
 
 ! AFRd is not a magic pill, it will just switch display mode to one
 ! that is most suitable for current movie.

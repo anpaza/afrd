@@ -15,6 +15,9 @@
 #include "mstime.h"
 #include "cfg_parse.h"
 
+// uncomment for more verbose debug messages
+//#define AFRD_DEBUG
+
 #define DEFAULT_HDMI_DEV		"/sys/class/amhdmitx/amhdmitx0"
 #define DEFAULT_HDMI_STATE		"/sys/class/switch/hdmi/state"
 #define DEFAULT_HDMI_DELAY		300
@@ -41,12 +44,17 @@ typedef struct
 	bool fractional;
 } display_mode_t;
 
+#define HZ_FMT		"%u.%02u"
+#define HZ_ARGS(hz)	((hz) >> 8), ((100 * ((hz) & 255) + 128) >> 8)
+
 // printf ("mode: "DISPMODE_FMT, DISPMODE_ARGS(mode, display_mode_hz (&mode)))
-#define DISPMODE_FMT			"%s (%ux%u@%u.%02uHz%s)"
+#define DISPMODE_FMT			"%s (%ux%u@"HZ_FMT"Hz%s)"
 #define DISPMODE_ARGS(mode, hz) \
-	(mode).name, (mode).width, (mode).height, \
-	(hz) >> 8, (100 * ((hz) & 255)) >> 8, \
+	(mode).name, (mode).width, (mode).height, HZ_ARGS (hz), \
 	(mode).interlaced ? ", interlaced" : ""
+
+// make a .8 fixed-point number, i integer and f fractional part (0 to 999)
+#define FP8(i,f)	(((i) << 8) | (((f) * 256 + 500) / 1000))
 
 // program name
 extern const char *g_program;
@@ -84,6 +92,12 @@ extern int g_mode_switch_delay;
 extern void trace (int level, const char *format, ...);
 // enable logging trace()s to file
 extern void trace_log (const char *logfn);
+
+#ifdef AFRD_DEBUG
+#  define dtrace(args...)	trace (args)
+#else
+#  define dtrace(args...)
+#endif
 
 extern int afrd_init ();
 extern int afrd_run ();

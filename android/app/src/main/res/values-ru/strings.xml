@@ -75,8 +75,7 @@
     <string name="l_afrd_version">Версия демона Автоматического Подбора Частоты</string>
     <string name="l_afrd_enabled">Демон включён</string>
     <string name="only_amlogic">Это приложение поддерживает только устройства на базе процессоров
-        AmLogic.\\n\\nК сожалению, анализ Вашей системы не показал его наличие.\\n\\nПрограмма будет
-        закрыта.
+        AmLogic.
     </string>
     <string name="l_current_hz">Текущая частота вертикальной развёртки</string>
     <string name="l_blackened">Экран затемнён</string>
@@ -137,4 +136,5 @@
     <string name="menu_desc_faq">ЧАсто задаваемые ВОпросы</string>
     <string name="faq_title">Часто Задаваемые Вопросы и полезные советы</string>
     <string name="about_testing_support">Тестирование и поддержка</string>
+    <string name="afrdctl_version">Версия %s-%s</string>
 </resources>
