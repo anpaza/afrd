@@ -18,6 +18,13 @@
     Removed dependency of Android setting key_hdmi_selfadaptation,
     now there are many other ways to disable afrd.
 
+    Substantially improved frame rate detection algorithm.
+
+    Added option frhint.vdec.blacklist so that afrd will ignore
+    FRAME_RATE_HINTs from certain video decoders. This allowed
+    to solve an old problem on Android 6 and 7 with the H265
+    decoder, which generates wrong frame rates.
+
 0.2.4 Sun Mar 10 18:22:32 2019 +0300
 
     Added option switch.timeout that sets the timeout for framerate switch.

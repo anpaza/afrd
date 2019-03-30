@@ -56,5 +56,13 @@
                             android:selectAllOnFocus="false" android:singleLine="true"
                             android:summary="@string/prefsum_log_file"
                             android:title="@string/prefs_log_file"/>
+        <EditTextPreference android:key="vdec_blacklist"
+                            android:selectAllOnFocus="false" android:singleLine="true"
+                            android:summary="@string/prefsum_vdec_blacklist"
+                            android:title="@string/prefs_vdec_blacklist"/>
+        <EditTextPreference android:key="frhint_vdec_blacklist"
+                            android:selectAllOnFocus="false" android:singleLine="true"
+                            android:summary="@string/prefsum_frhint_vdec_blacklist"
+                            android:title="@string/prefs_frhint_vdec_blacklist"/>
     </PreferenceScreen>
 </PreferenceScreen>
