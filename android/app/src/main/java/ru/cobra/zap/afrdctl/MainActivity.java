@@ -78,11 +78,10 @@ public class MainActivity extends Activity
         mControl = new Control (this);
         mOptions = getSharedPreferences ("ini_options", 0);
 
-        if (!createMainMenu () ||
-            !prepareConfig () ||
-            !prepareDaemon () ||
-            !prepareSuperuser ())
-            ;
+        createMainMenu ();
+        prepareConfig ();
+        prepareDaemon ();
+        prepareSuperuser ();
 
         addFragment (StatusFragment.create (), "status");
     }

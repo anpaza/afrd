@@ -12,8 +12,8 @@
                   android:paddingEnd="16dp" android:textSize="18sp"/>
         <ImageButton android:id="@+id/buttonLogClear" android:layout_width="40dp"
                      android:layout_height="match_parent" android:layout_marginStart="16dp"
-                     android:layout_weight="0" android:contentDescription="@string/log_clear"
-                     android:src="@drawable/ic_clear"/>
+                     android:layout_marginEnd="16dp" android:layout_weight="0"
+                     android:contentDescription="@string/log_clear" android:src="@drawable/ic_clear"/>
     </LinearLayout>
 
     <ScrollView android:layout_width="match_parent" android:layout_height="match_parent">

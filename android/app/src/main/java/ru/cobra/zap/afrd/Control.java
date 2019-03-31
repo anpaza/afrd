@@ -134,8 +134,24 @@ public class Control
                     continue;
             }
 
-            if (!extractFile (ctx, res_id, mAfrd))
-                return ctx.getString (R.string.failed_copy_raw, mAfrd.getPath ());
+
+            for (int i = 0; ; i++)
+            {
+                if (extractFile (ctx, res_id, mAfrd))
+                    break;
+
+                switch (i)
+                {
+                    case 0:
+                        String[] cmd = new String [] { mAfrd.getPath () + " -k", "rm -f " + mAfrd.getPath () };
+                        Shell.run ("su", cmd, null, false);
+                        break;
+
+                    case 1:
+                        return ctx.getString (R.string.failed_copy_raw, mAfrd.getPath ());
+                }
+            }
+
             return "";
         }
 

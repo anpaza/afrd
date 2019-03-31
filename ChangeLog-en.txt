@@ -25,6 +25,10 @@
     to solve an old problem on Android 6 and 7 with the H265
     decoder, which generates wrong frame rates.
 
+    Added user-mode API so that co-operative video player software
+    can tell afrd the expected framerate of the starting video,
+    and more (see docs).
+
 0.2.4 Sun Mar 10 18:22:32 2019 +0300
 
     Added option switch.timeout that sets the timeout for framerate switch.
