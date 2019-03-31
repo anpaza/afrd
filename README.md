@@ -205,19 +205,39 @@ The following parameters are recognized by AFRD:
     [[:space:]] regular expression.
 
 
-Android Settings support
-------------------------
+AFRd API
+--------
 
-In many firmware variants for AmLogic Android there's a system setting named
-"HDMI self-adaptation". Usually it can have one of three values - something
-like "off" (0), "partial" (1) and "full" (2). afrd will honor this setting.
-But this setting doesn't work most of the time (otherwise afrd wouldn't be
-needed). This setting is stored in Android's settings database.
+AFRd has an API which can be used to cooperate with video player software in order
+to get a better user experience. In particular, software may tell afrd in advance
+what is the frame rate of the video, so that afrd doesn't have to guess it.
 
-If you set the "settings.enable" parameter in config file to contain the
-name of the respective Android setting, afrd will obey this setting.
-If it is 0, afrd will not switch framerate, otherwise it will.
-In most cases, you can check if your system has this setting by
-running the command:
+The API is available by sending UDP datagrams to address 127.0.0.1, port 50505.
+The protocol is purely textual, each datagram may contain multiple commands,
+each command on a separate line.
 
-    $ settings get system key_hdmi_selfadaption
+The format of each line is:
+
+	<command> [<arguments> ...]
+
+The following commands are available:
+
+* *help*
+    display a list of supported commands and their short description
+
+* *frame_rate_hint* <fr>
+    tell afrd the video starting in less than one second will use
+    <fr>/1000 frames per second (e.g. 23976 = 23.976 fps).
+
+* *refresh_rate* <rr>
+    tell afrd to set display refresh rate as close to <rr>/1000 Hz
+    as possible immediately, no arg to restore original rate.
+
+* *color_space* <cs>
+    override colorspace, empty arg to restore default behavior
+
+* *status*
+    get current afrd status
+
+* *reconf*
+    tell afrd to reload configuration file as soon as possible

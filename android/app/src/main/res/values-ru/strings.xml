@@ -68,7 +68,7 @@
     </string>
     <string name="prefs_switch_blackout">Задержка выключения экрана</string>
     <string name="prefsum_switch_blackout">Задержка в мс для выключения экрана сразу после старта
-        видео, задайте 0 чтобы не выключать экран
+        видео. Задайте 0 чтобы экран не выключался
     </string>
 
     <string name="afrd_requires_su">AFRd требует прав Администратора для работы</string>

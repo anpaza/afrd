@@ -51,3 +51,34 @@
 
 ! Open "Advanced settings" -> "Blacklisted refresh rates" and add the
 ! refresh rate of 30 (and, possibly, 29.97) Hz to the list.
+
+? Why after video start the screen goes to black for some time, even if
+? video framerate is not different from display refresh rate?
+
+! When video starts, after a short interval AFRd will turn the screen to
+! black to avoid displaying the first frames of the video, after which
+! usually a refresh rate switch happens, which is painful for eyes.
+
+! So, to make the switch easier for eyes it was found that a preliminary
+! switch to black helps.
+
+! But at the moment when AFRd switches display to black it doesn't know
+! yet the video framerate - detection is a lengthy process taking from
+! half to a few seconds. So, at the time AFRd turns display off it doesn't
+! know yet the framerate and can't avoid the unneccessary black screen.
+
+! If you wish, you can turn off this feature in preferences.
+
+? Why display doesn't turn off when I start one video immediately after
+? another?
+
+! Preliminary switch to black takes action only if there's no active video.
+! If video was already started, AFRd will avoid turning screen to black
+! because it is not expected frame rate to change.
+
+! When video ends, AFRd will wait some time before restoring original
+! refresh rate. If you start a video immediately, it will be considered
+! a "continuation" of previous video, thus screen won't be turned off.
+
+! If you want display to turn off after the start of video, wait first
+! for the original refresh rate to restore.

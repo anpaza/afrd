@@ -86,6 +86,10 @@ static int g_cs_filter_size = 0;
 /* Default color space */
 static char *g_cs_default = 0;
 
+/* Override colorspace via API */
+static struct colorspace_t g_override_cs;
+static bool g_override_cs_enabled = false;
+
 static bool parse_str (const char *str, int *val, struct parse_list *list)
 {
 	int i;
@@ -285,6 +289,17 @@ bool colorspace_apply (const char *mode)
 	colorspace_parse (cur_cs_str, &cur_cs, false);
 	free (cur_cs_str);
 
+	/* colorspace override */
+	if (g_override_cs_enabled) {
+		if (g_override_cs.cs != COLORSPACE_RESERVED)
+			cur_cs.cs = g_override_cs.cs;
+		if (g_override_cs.cd != COLORDEPTH_RESERVED)
+			cur_cs.cd = g_override_cs.cd;
+		if (g_override_cs.cr != COLORRANGE_RESERVED)
+			cur_cs.cr = g_override_cs.cr;
+		goto apply;
+	}
+
 	for (int i = 0; i < g_cs_filter_size; i++) {
 		struct cs_filter_t *csf = &g_cs_filter [i];
 
@@ -317,6 +332,19 @@ apply:
 	cs_attr = colorspace_str (&cur_cs);
 	trace (1, "Setting color space to %s\n", cs_attr);
 	return sysfs_write (g_cs_path, cs_attr) == 0;
+}
+
+void afrd_override_colorspace (char **cs)
+{
+	char *cur = *cs;
+
+	if (cur && *cur && colorspace_parse (cur, &g_override_cs, true)) {
+		g_override_cs_enabled = true;
+		cur = strchr (cur, 0);
+	} else
+		g_override_cs_enabled = false;
+
+	*cs = cur;
 }
 
 void colorspace_init ()

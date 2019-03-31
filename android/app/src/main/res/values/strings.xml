@@ -69,7 +69,8 @@
         determined
     </string>
     <string name="prefs_switch_blackout">Screen off delay</string>
-    <string name="prefsum_switch_blackout">The delay in ms to turn display off after movie starts
+    <string name="prefsum_switch_blackout">The delay in ms to turn display off after movie starts.
+        Set to 0 to disable this feature
     </string>
 
     <string name="afrd_requires_su">AFRd requires Superuser privileges to run</string>

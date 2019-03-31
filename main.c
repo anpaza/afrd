@@ -15,6 +15,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/resource.h>
 
 #include "afrd.h"
 
@@ -233,6 +234,10 @@ static void daemonize ()
 	close (0);
 	close (1);
 	close (2);
+
+	/* set priority a bit higher than normal -
+	   we're kind of time-critical process */
+	setpriority (PRIO_PROCESS, getpid (), -16);
 }
 
 static void display_stats ()

@@ -11,12 +11,16 @@
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <poll.h>
 
 #include "mstime.h"
 #include "cfg_parse.h"
 
 // uncomment for more verbose debug messages
 //#define AFRD_DEBUG
+
+// afrd API is available through localhost:50505
+#define AFRD_API_PORT			50505
 
 #define DEFAULT_HDMI_DEV		"/sys/class/amhdmitx/amhdmitx0"
 #define DEFAULT_HDMI_STATE		"/sys/class/switch/hdmi/state"
@@ -89,7 +93,7 @@ extern bool g_blackened;
 extern int g_mode_switch_delay;
 
 // trace calls if g_verbose != 0
-extern void trace (int level, const char *format, ...);
+extern void trace (int level, const char *format, ...) __attribute__((format(printf,2,3)));
 // enable logging trace()s to file
 extern void trace_log (const char *logfn);
 
@@ -116,7 +120,7 @@ extern int display_mode_hz (display_mode_t *mode);
 // set fractional framerate if that is closer to hz (24.8 fixed-point)
 extern void display_mode_set_hz (display_mode_t *mode, int hz);
 // switch video mode
-extern void display_mode_switch (display_mode_t *mode);
+extern void display_mode_switch (display_mode_t *mode, bool force);
 // disable the screen
 extern void display_mode_null ();
 
@@ -203,5 +207,23 @@ extern void shmem_fini ();
 extern void shmem_update ();
 // update g_afrd_stats from shared memory (in read mode)
 extern bool shmem_read ();
+
+// Initialize the unix domain socket for afrd API
+extern bool apisock_init ();
+// Finalize the unix domain socket for afrd API
+extern void apisock_fini ();
+// Fill the poll structure with socket handles and return their amount
+extern int apisock_prep_poll (struct pollfd *pfd, int pfd_count);
+// Handle socket events
+extern void apisock_handle (struct pollfd *pfd, int pfd_count);
+
+// afrd API: next video starting in <1.0 sec will use this frame rate
+extern void afrd_frame_rate_hint (int hz);
+// afrd API: set display refresh rate
+extern void afrd_refresh_rate (int hz);
+// afrd API: reload configuration file
+extern void afrd_reconf ();
+// afrd API: override color space
+extern void afrd_override_colorspace (char **cs);
 
 #endif /* __AFRD_H__ */

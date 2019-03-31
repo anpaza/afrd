@@ -10,7 +10,6 @@
 #define __USE_GNU
 #include <unistd.h>
 #include <fcntl.h>
-#include <poll.h>
 #include <linux/netlink.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -141,6 +140,17 @@ static struct
 	// a stamp to detect when dump_vdec_blocks stays still
 	int hz_samples_stamp;
 } g_state;
+
+/**
+ *
+ */
+static struct
+{
+	// time stamp when this hint was valid
+	mstime_t stamp;
+	// the declared movie fps
+	int fps;
+} g_frame_rate_hint;
 
 
 static bool uevent_open (int buf_sz)
@@ -531,40 +541,34 @@ static void blackout ()
 	update_stats ();
 }
 
-static void framerate_fail ()
+static void framerate_restore (bool only_if_black)
 {
 	mstime_disable (&g_ost_blackout);
 
-	if (!g_blackened)
+	if (only_if_black && !g_blackened)
 		return;
 
 	if (g_state.orig_mode.name [0])
-		display_mode_switch (&g_state.orig_mode);
+		display_mode_switch (&g_state.orig_mode, false);
 	else
-		display_mode_switch (&g_current_mode);
+		display_mode_switch (&g_current_mode, false);
 
 	memset (&g_state, 0, sizeof (g_state));
 	update_stats ();
 }
 
-static void framerate_switch ()
+static void framerate_switch (bool force)
 {
 	if (g_state.restore) {
-		if (!g_state.orig_mode.name [0]) {
+		if (!g_state.orig_mode.name [0])
 			trace (1, "No saved display mode to restore\n");
-			framerate_fail ();
-			return;
-		}
-
-		display_mode_switch (&g_state.orig_mode);
-		memset (&g_state, 0, sizeof (g_state));
-		update_stats ();
+		framerate_restore (false);
 		return;
 	}
 
 	if (!g_enable) {
 		trace (1, "User disabled AFR\n");
-		framerate_fail ();
+		framerate_restore (true);
 		return;
 	}
 
@@ -573,7 +577,7 @@ static void framerate_switch ()
 		g_state.hz = best_fps (true);
 		if (g_state.hz == 0) {
 			trace (1, "Timeout detecting movie frame rate, giving up\n");
-			framerate_fail ();
+			framerate_restore (true);
 			return;
 		}
 	}
@@ -662,18 +666,18 @@ static void framerate_switch ()
 
 	if (!best_mode.name [0]) {
 		trace (1, "Failed to find a suitable display mode\n");
-		framerate_fail ();
+		framerate_restore (true);
 		return;
 	}
 
 	// if we already switched mode to something close to what we found,
 	// avoid unneeded irritating framerate switching in the middle of watching
-	if (g_state.orig_mode.name [0] && !g_blackened) {
+	if (g_state.orig_mode.name [0] && !g_blackened && !force) {
 		int hz1 = display_mode_hz (&best_mode);
 		int hz2 = display_mode_hz (&g_current_mode);
 		if (hz_close (hz1, hz2)) {
 			trace (1, "Skipping mode switch since current refresh is close enough\n");
-			framerate_fail ();
+			framerate_restore (true);
 			return;
 		}
 	}
@@ -684,7 +688,7 @@ static void framerate_switch ()
 	if (!g_state.orig_mode.name [0])
 		g_state.orig_mode = g_current_mode;
 
-	display_mode_switch (&best_mode);
+	display_mode_switch (&best_mode, force);
 	update_stats ();
 }
 
@@ -694,18 +698,17 @@ static void framerate_switch ()
  *      or 0 to ask movie refresh rate from vdec.
  * @param modalias the value of MODALIAS= uevent attribute (codec name)
  */
-static void delayed_framerate_switch (bool restore, int hz, const char *modalias)
+static void delay_framerate_switch (bool restore, int hz, const char *modalias)
 {
 	mstime_disable (&g_ost_blackout);
+	mstime_disable (&g_ost_switch);
 
 	mstime_t delay = restore ? g_switch_delay_off : g_switch_delay_on;
 
 	if (restore && !g_switch_delay_off) {
 		trace (1, "Refresh rate restoration disabled by user\n");
 
-		mstime_disable (&g_ost_switch);
-
-		framerate_fail ();
+		framerate_restore (true);
 		memset (&g_state, 0, sizeof (g_state));
 		update_stats ();
 		return;
@@ -716,11 +719,10 @@ static void delayed_framerate_switch (bool restore, int hz, const char *modalias
 			trace (1, "Blacklisted vdec %s, skipping AFR\n", modalias);
 			return;
 		}
-	}
 
-	// save decoder name
-	if (modalias)
+		// save decoder name
 		strncpy (g_state.modalias, modalias, sizeof (g_state.modalias));
+	}
 
 	if (g_state.restore != restore) {
 		g_state.restore = restore;
@@ -732,6 +734,12 @@ static void delayed_framerate_switch (bool restore, int hz, const char *modalias
 	// if refresh rate is going to be restored, and screen is black, do not delay
 	if (restore && g_blackened)
 		delay = g_switch_delay_on;
+
+	// check for frame_rate_hint via API
+	if (!restore &&
+	    mstime_enabled (&g_frame_rate_hint.stamp) &&
+	    !mstime_expired (&g_frame_rate_hint.stamp))
+		hz = g_frame_rate_hint.fps;
 
 	// if we known fps, use it
 	if (hz && (hz >= HZ_MIN) && (hz < HZ_MAX)) {
@@ -828,17 +836,17 @@ static void handle_uevent (char *msg, ssize_t size)
 				}
 
 				int fr_hz = (256*96000 + frh / 2) / frh;
-				delayed_framerate_switch (false, fr_hz, modalias);
+				delay_framerate_switch (false, fr_hz, modalias);
 			}
 		} else if (frame_rate_end_hint)
-			delayed_framerate_switch (true, 0, modalias);
+			delay_framerate_switch (true, 0, modalias);
 
 	} else if (uevent_filter_matched (&g_filter_vdec)) {
 		/* got a vdec uevent */
 		if (action && (strcmp (action, "add") == 0))
-			delayed_framerate_switch (false, 0, modalias);
+			delay_framerate_switch (false, 0, modalias);
 		else if (action && (strcmp (action, "remove") == 0))
-			delayed_framerate_switch (true, 0, modalias);
+			delay_framerate_switch (true, 0, modalias);
 
 	} else if (uevent_filter_matched (&g_filter_hdmi)) {
 		/* hdmi plugged on or off */
@@ -898,39 +906,6 @@ static void handle_uevents ()
 	}
 }
 
-static void blacklist_rates_load (const char *kw)
-{
-	g_mode_blacklist_rates_count = 0;
-
-	const char *str = cfg_get_str (kw, NULL);
-	if (!str)
-		return;
-
-	trace (1, "\tloading blacklisted rates\n");
-
-	char *tmp = strdup (str);
-	char *cur = tmp;
-	while (*cur) {
-		cur += strspn (cur, spaces);
-		char *next = cur + strcspn (cur, spaces);
-		if (*next)
-			*next++ = 0;
-
-		float rate;
-		if ((sscanf (cur, "%f", &rate) == 1) && (rate >= 1) && (rate <= 1000) &&
-		    (g_mode_blacklist_rates_count < ARRAY_SIZE (g_mode_blacklist_rates))) {
-			int irate = (int)(256.0 * rate + 0.5);
-			g_mode_blacklist_rates [g_mode_blacklist_rates_count] = irate;
-			g_mode_blacklist_rates_count++;
-			trace (2, "\t+ "HZ_FMT"Hz\n", HZ_ARGS (irate));
-		}
-
-		cur = next;
-	}
-
-	free (tmp);
-}
-
 /* --------- * --------- * --------- * --------- * --------- * --------- */
 
 /* check config file once in 5 seconds */
@@ -965,7 +940,7 @@ static void safe_mstime_update (int to)
 
 	// time difference is substantially larger than timeout?
 	int delta_mstime = g_mstime - old_mstime;
-	if ((delta_mstime < 0) || (delta_mstime > to + 1000)) {
+	if ((delta_mstime < 0) || (delta_mstime > to + 10000)) {
 		delta_mstime -= to;
 		trace (1, "System timer changed, adjusting all timers by %d ms\n", delta_mstime);
 		mstime_adjust (delta_mstime, &g_ost_switch);
@@ -974,6 +949,8 @@ static void safe_mstime_update (int to)
 		mstime_adjust (delta_mstime, &g_ost_config);
 	}
 }
+
+static time_t g_config_mtime;
 
 int afrd_run ()
 {
@@ -985,9 +962,9 @@ int afrd_run ()
 	trace (1, "afrd running\n");
 	mstime_update ();
 
-	struct pollfd pfd;
-	pfd.events = POLLIN;
-	pfd.fd = g_uevent_sock;
+	struct pollfd pfd [16];
+	pfd [0].events = POLLIN;
+	pfd [0].fd = g_uevent_sock;
 
 	mstime_disable (&g_ost_switch);
 	mstime_disable (&g_ost_hdmi);
@@ -995,7 +972,7 @@ int afrd_run ()
 
 	// Check config timestamp timer
 	mstime_arm (&g_ost_config, 1);
-	time_t config_mtime = mtime (g_config);
+	g_config_mtime = mtime (g_config);
 
 	update_stats ();
 
@@ -1016,15 +993,19 @@ int afrd_run ()
 
 		// wait until either a new uevent comes
 		// or the delayed mode switch timer expires
-		pfd.revents = 0;
-		int rc = poll (&pfd, 1, to);
+		pfd [0].revents = 0;
+		// add API domain sockets into the pool
+		int n_pfd = 1 + apisock_prep_poll (pfd + 1, ARRAY_SIZE (pfd) - 1);
+		int rc = poll (pfd, n_pfd, to);
 
 		// catch system time change events, this breaks our timers
 		safe_mstime_update (to);
 
-		if (rc > 0)
-			if (pfd.revents & POLLIN)
+		if (rc > 0) {
+			if (pfd [0].revents & POLLIN)
 				handle_uevents ();
+			apisock_handle (pfd, n_pfd);
+		}
 
 		// disable screen at start of playback
 		if (mstime_expired (&g_ost_blackout) && !g_state.restore)
@@ -1033,7 +1014,7 @@ int afrd_run ()
 		// if mode switch timer expired, switch the mode finally
 		if (mstime_expired (&g_ost_switch)) {
 			mstime_disable (&g_ost_switch);
-			framerate_switch ();
+			framerate_switch (false);
 		}
 
 		// query supported video modes after HDMI has been plugged on
@@ -1044,34 +1025,94 @@ int afrd_run ()
 
 		// check config timestamp and reload it if so
 		if (mstime_expired (&g_ost_config)) {
-			mstime_arm (&g_ost_config, CONFIG_CHECK_PERIOD);
 			// if we're doing other work, don't hog the CPU
 			if (!mstime_enabled (&g_ost_blackout) &&
 			    !mstime_enabled (&g_ost_switch) &&
 			    !mstime_enabled (&g_ost_hdmi)) {
+				mstime_arm (&g_ost_config, CONFIG_CHECK_PERIOD);
 				time_t cmt = mtime (g_config);
-				if ((cmt != 0) && (cmt != config_mtime)) {
+				if ((cmt != 0) && (cmt != g_config_mtime)) {
 					trace (1, "config file %s changed, reloading\n", g_config);
 					ret = 1;
 					break;
 				}
-			}
+			} else
+				mstime_arm (&g_ost_config, 1000);
 		}
 	}
 
 	// restore framerate just in case
 	g_state.restore = true;
-	framerate_switch ();
+	framerate_switch (false);
 	return ret;
+}
+
+/* --------- * --------- * --------- * --------- * --------- * --------- */
+
+void afrd_frame_rate_hint (int hz)
+{
+	g_frame_rate_hint.fps = hz;
+	mstime_arm (&g_frame_rate_hint.stamp, 1000);
+}
+
+void afrd_refresh_rate (int hz)
+{
+	bool ok = (hz && (hz >= HZ_MIN) && (hz < HZ_MAX));
+	if (!ok)
+		hz = 0;
+
+	g_state.restore = !ok;
+	g_state.hz = hz;
+	framerate_switch (true);
+
+}
+
+void afrd_reconf ()
+{
+	mstime_arm (&g_ost_config, 0);
+	g_config_mtime = (time_t)-1;
+}
+
+/* --------- * --------- * --------- * --------- * --------- * --------- */
+
+static void blacklist_rates_load (const char *kw)
+{
+	g_mode_blacklist_rates_count = 0;
+
+	const char *str = cfg_get_str (kw, NULL);
+	if (!str)
+		return;
+
+	trace (1, "\tloading blacklisted rates\n");
+
+	char *tmp = strdup (str);
+	char *cur = tmp;
+	while (*cur) {
+		cur += strspn (cur, spaces);
+		char *next = cur + strcspn (cur, spaces);
+		if (*next)
+			*next++ = 0;
+
+		float rate;
+		if ((sscanf (cur, "%f", &rate) == 1) && (rate >= 1) && (rate <= 1000) &&
+		    (g_mode_blacklist_rates_count < ARRAY_SIZE (g_mode_blacklist_rates))) {
+			int irate = (int)(256.0 * rate + 0.5);
+			g_mode_blacklist_rates [g_mode_blacklist_rates_count] = irate;
+			g_mode_blacklist_rates_count++;
+			trace (2, "\t+ "HZ_FMT"Hz\n", HZ_ARGS (irate));
+		}
+
+		cur = next;
+	}
+
+	free (tmp);
 }
 
 int afrd_init ()
 {
 	/* load config if not loaded already */
-	if (!g_cfg && (load_config (g_config) != 0)) {
-		trace (0, "failed to load config file %s\n", g_config);
+	if (!g_cfg && (load_config (g_config) != 0))
 		return -1;
-	}
 
 	shmem_init (false);
 
@@ -1102,8 +1143,8 @@ int afrd_init ()
 	g_switch_timeout = cfg_get_int ("switch.timeout", DEFAULT_SWITCH_TIMEOUT);
 	g_switch_blackout = cfg_get_int ("switch.blackout", DEFAULT_SWITCH_BLACKOUT);
 
-	trace (1, "\tswitch delays: on %d, off %d, retry %d ms\n",
-		g_switch_delay_on, g_switch_delay_off, g_switch_delay_retry);
+	trace (1, "\tswitch delays: on %d, off %d, retry %d ms, blackout %d ms\n",
+		g_switch_delay_on, g_switch_delay_off, g_switch_delay_retry, g_switch_blackout);
 
 	g_vdec_sysfs = cfg_get_str ("vdec.sysfs", DEFAULT_VDEC_SYSFS);
 	strlist_load (&g_vdec_blacklist, "vdec.blacklist", "vdec blacklist");
@@ -1119,6 +1160,7 @@ int afrd_init ()
 
 	display_modes_init ();
 	colorspace_init ();
+	apisock_init ();
 
 	return 0;
 }
@@ -1142,6 +1184,7 @@ void afrd_fini ()
 	g_mode_path = NULL;
 	g_vdec_sysfs = NULL;
 
+	apisock_fini ();
 	display_modes_fini ();
 	colorspace_fini ();
 

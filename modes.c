@@ -224,9 +224,9 @@ void display_mode_set_hz (display_mode_t *mode, int hz)
 		mode->fractional = false;
 }
 
-void display_mode_switch (display_mode_t *mode)
+void display_mode_switch (display_mode_t *mode, bool force)
 {
-	if (!g_blackened &&
+	if (!g_blackened && !force &&
 	    display_mode_equal (mode, &g_current_mode)) {
 		trace (1, "Display mode is already "DISPMODE_FMT"\n",
 			DISPMODE_ARGS (*mode, display_mode_hz (mode)));
@@ -234,8 +234,9 @@ void display_mode_switch (display_mode_t *mode)
 	}
 
 	// fractional mode transition via special null mode
-	if ((strcmp (mode->name, g_current_mode.name) == 0) &&
-	    (mode->fractional != g_current_mode.fractional))
+	if (force ||
+	    ((strcmp (mode->name, g_current_mode.name) == 0) &&
+	     (mode->fractional != g_current_mode.fractional)))
 		display_mode_null ();
 
 	trace (1, "Switching display mode to "DISPMODE_FMT"\n",
