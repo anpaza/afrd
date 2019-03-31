@@ -349,6 +349,8 @@ void afrd_override_colorspace (char **cs)
 
 void colorspace_init ()
 {
+	g_override_cs_enabled = false;
+
 	g_cs_list_path = cfg_get_str ("cs.list.path", NULL);
 	if (!g_cs_list_path)
 		return;

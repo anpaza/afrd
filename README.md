@@ -234,10 +234,72 @@ The following commands are available:
     as possible immediately, no arg to restore original rate.
 
 * *color_space* <cs>
-    override colorspace, empty arg to restore default behavior
+    override colorspace, empty arg to restore default behavior.
+    The <cs> specificator may contain, separated by comma:
+    * The color space itself (one of rgb, 444, 422, 420)
+    * The color depth (8bit, 10bit, 12bit, 16bit)
+    * The color range (limit or full)
+    Color space takes effect on next refresh rate switch.
 
 * *status*
     get current afrd status
 
 * *reconf*
     tell afrd to reload configuration file as soon as possible
+
+To test the API you may use the 'nc' tool that is part of busybox, which can be
+easily installed if you didn't already. Example dialog with afrd, lines starting
+with '>' are outgoing, others are incoming:
+
+```
+1|u211:/ # nc -u 127.0.0.1 50505
+>help
+frame_rate_hint <fr>
+	tell afrd the video starting in <1.0 seconds will use <fr>/1000 frames per second (e.g. 23976 = 23.976 fps)
+refresh_rate <rr>
+	tell afrd to set display refresh rate as close to <rr>/1000 Hz as possible, no arg to restore original rate
+color_space <cs>
+	override colorspace, empty arg tor restore default behavior
+status
+	get current afrd status
+reconf
+	tell afrd to reload configuration file as soon as possible
+
+>status
+enabled:1
+active:0
+blackened:0
+version:0.2.5
+build:2019-03-31 21:17:38
+current hz:50000
+original hz:50000
+
+>refresh_rate 59940
+
+>status
+enabled:1
+active:1
+blackened:0
+version:0.2.5
+build:2019-03-31 21:17:38
+current hz:59941
+original hz:50000
+
+>refresh_rate
+
+>status
+enabled:1
+active:0
+blackened:0
+version:0.2.5
+build:2019-03-31 21:17:38
+current hz:50000
+original hz:50000
+
+>color_space rgb,8bit,full
+>refresh_rate 50000
+```
+
+Note how afrd remembers original refresh rate when you switch it for the first time,
+and how it restores refresh rate when the command 'refresh_rate' without parameters
+is issued.
