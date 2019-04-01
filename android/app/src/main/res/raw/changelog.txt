@@ -29,6 +29,9 @@
     can tell afrd the expected framerate of the starting video,
     and more (see docs).
 
+    at start, afrd will now switch to root namespace to avoid problems
+    with the 'use separate namespaces' option of SuperSU.
+
 0.2.4 Sun Mar 10 18:22:32 2019 +0300
 
     Added option switch.timeout that sets the timeout for framerate switch.

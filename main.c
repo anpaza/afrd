@@ -3,6 +3,7 @@
  * for AMLogic S905/S912-based boxes.
  */
 
+#define __USE_GNU
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -12,6 +13,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <libgen.h>
+#include <sched.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -191,8 +193,36 @@ static int kill_daemon ()
 	return EXIT_FAILURE;
 }
 
+static void switch_namespace (int pid)
+{
+#if __ANDROID_API__ >= 21
+	char tmp [64];
+	int h;
+
+	snprintf (tmp, sizeof (tmp), "/proc/%d/ns/cgroup", pid);
+	h = open (tmp, O_RDONLY);
+	if (h >= 0) {
+		int rc = setns (h, CLONE_NEWCGROUP);
+		close (h);
+	}
+
+	snprintf (tmp, sizeof (tmp), "/proc/%d/ns/mnt", pid);
+	h = open (tmp, O_RDONLY);
+	if (h >= 0) {
+		int rc = setns (h, CLONE_NEWNS);
+		close (h);
+	}
+#else
+#error "afrd is not designed to run on Android API level < 21"
+#endif
+}
+
 static void daemonize ()
 {
+	/* switch to root namespace */
+	switch_namespace (1);
+
+	/* check PID */
 	pid_t pid = daemon_pid ();
 	if (pid > 0) {
 		fprintf (stderr, "%s: daemon is already running with PID %d\n",
@@ -269,6 +299,8 @@ int main (int argc, char *const *argv)
 
 	// ensure a sane umask so that user processes can read our files
 	umask (022);
+	// switch to root namespace
+	switch_namespace (1);
 
 	g_program = argv [0];
 

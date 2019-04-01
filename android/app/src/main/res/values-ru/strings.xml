@@ -141,7 +141,7 @@
     <string name="prefsum_vdec_blacklist">Список декодеров видео, для которых afrd не будет
         переключать частоту
     </string>
-    <string name="prefs_frhint_vdec_blacklist">Декодеры видео, генерирующие кривой FRAME_RATE_HINT</string>
+    <string name="prefs_frhint_vdec_blacklist">Декодеры видео, генерирующие неверный FRAME_RATE_HINT</string>
     <string name="prefsum_frhint_vdec_blacklist">Список декодеров, для которых afrd не будет
         использовать FRAME_RATE_HINT. Другие источники дадут значительно лучший результат
     </string>
