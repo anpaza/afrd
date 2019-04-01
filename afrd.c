@@ -977,6 +977,9 @@ int afrd_run ()
 	update_stats ();
 
 	while (!g_shutdown) {
+		// flush log to disk
+		trace_sync ();
+
 		// update the millisecond timer
 		safe_mstime_update (0);
 
@@ -994,7 +997,7 @@ int afrd_run ()
 		// wait until either a new uevent comes
 		// or the delayed mode switch timer expires
 		pfd [0].revents = 0;
-		// add API domain sockets into the pool
+		// add API sockets into the pool
 		int n_pfd = 1 + apisock_prep_poll (pfd + 1, ARRAY_SIZE (pfd) - 1);
 		int rc = poll (pfd, n_pfd, to);
 

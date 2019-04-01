@@ -80,11 +80,17 @@ void trace_log (const char *logfn)
 		rename (logfn, backup_logfn);
 	}
 
-	g_logh = open (logfn, O_WRONLY | O_APPEND | O_CLOEXEC | O_CREAT | O_SYNC, 0644);
+	g_logh = open (logfn, O_WRONLY | O_APPEND | O_CLOEXEC | O_CREAT /*| O_SYNC*/, 0644);
 	if (g_logh < 0) {
 		fprintf (stderr, "%s: failed to open log file %s", g_program, logfn);
 		return;
 	}
+}
+
+void trace_sync ()
+{
+	if (g_logh >= 0)
+		fdatasync (g_logh);
 }
 
 void trace (int level, const char *format, ...)

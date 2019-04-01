@@ -96,6 +96,8 @@ extern int g_mode_switch_delay;
 extern void trace (int level, const char *format, ...) __attribute__((format(printf,2,3)));
 // enable logging trace()s to file
 extern void trace_log (const char *logfn);
+// flush written log entries to disk
+extern void trace_sync ();
 
 #ifdef AFRD_DEBUG
 #  define dtrace(args...)	trace (args)
