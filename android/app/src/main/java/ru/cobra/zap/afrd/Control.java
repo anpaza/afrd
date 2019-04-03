@@ -133,7 +133,7 @@ public class Control
             return "";
         }
 
-        return ctx.getString (R.string.arch_not_supported);
+        return ctx.getString (R.string.arch_not_supported, Arrays.toString (Build.SUPPORTED_ABIS));
     }
 
     /**

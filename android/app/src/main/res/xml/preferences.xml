@@ -17,7 +17,8 @@
                     android:entryValues="@array/mode_use_fract_value" android:key="mode_use_fract"
                     android:summary="@string/prefsum_mode_use_fract"
                     android:title="@string/prefs_mode_use_fract"/>
-    <PreferenceCategory android:title="@string/prefs_group_timings">
+    <PreferenceScreen android:fragment="ru.cobra.zap.afrdctl.SettingsFragment"
+                      android:key="timings" android:title="@string/prefs_group_timings">
         <EditTextPreference android:defaultValue="300" android:key="switch_delay_on"
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
                             android:singleLine="true" android:summary="@string/prefsum_switch_delay_on"
@@ -30,15 +31,19 @@
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
                             android:singleLine="true" android:summary="@string/prefsum_switch_delay_retry"
                             android:title="@string/prefs_switch_delay_retry"/>
-        <EditTextPreference android:defaultValue="100" android:key="switch_timeout"
+        <EditTextPreference android:defaultValue="3000" android:key="switch_timeout"
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
                             android:singleLine="true" android:summary="@string/prefsum_switch_timeout"
                             android:title="@string/prefs_switch_timeout"/>
-        <EditTextPreference android:defaultValue="100" android:key="switch_blackout"
+        <EditTextPreference android:defaultValue="150" android:key="switch_blackout"
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
                             android:singleLine="true" android:summary="@string/prefsum_switch_blackout"
                             android:title="@string/prefs_switch_blackout"/>
-    </PreferenceCategory>
+        <EditTextPreference android:defaultValue="200" android:key="switch_ignore"
+                            android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
+                            android:singleLine="true" android:summary="@string/prefsum_switch_ignore"
+                            android:title="@string/prefs_switch_ignore"/>
+    </PreferenceScreen>
     <PreferenceScreen android:fragment="ru.cobra.zap.afrdctl.SettingsFragment"
                       android:key="advanced" android:title="@string/settings_advanced">
         <EditTextPreference android:key="mode_blacklist_rates" android:selectAllOnFocus="false"

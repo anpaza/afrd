@@ -11,7 +11,7 @@
     <string name="nav_status">Status</string>
     <string name="ok">Ok</string>
     <string name="msg_title_critical_error">Critical error</string>
-    <string name="arch_not_supported">This CPU architecture is not supported by afrd</string>
+    <string name="arch_not_supported">CPU architecture \'%s\' is not supported by afrd</string>
     <string name="only_amlogic">This application supports only AmLogic SoC based
         devices.
     </string>
@@ -149,5 +149,9 @@
     <string name="prefs_frhint_vdec_blacklist">Video decoders generating bad FRAME_RATE_HINT</string>
     <string name="prefsum_frhint_vdec_blacklist">A list of video decoders for which afrd will not
         use FRAME_RATE_HINT events. It will use other sources, which works a lot better
+    </string>
+    <string name="prefs_switch_ignore">Ignore OFF/ON intervals shorter than</string>
+    <string name="prefsum_switch_ignore">Ignore ON switches that happen in less than this number of
+        milliseconds from previous OFF switch (helps to ignore video rewinding)
     </string>
 </resources>

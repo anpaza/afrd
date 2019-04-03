@@ -43,6 +43,7 @@ public class Config
         itemType.put ("switch.delay.retry", TYPE_INT);
         itemType.put ("switch.timeout", TYPE_INT);
         itemType.put ("switch.blackout", TYPE_INT);
+        itemType.put ("switch.ignore", TYPE_INT);
         itemType.put ("vdec.blacklist", TYPE_STR);
         itemType.put ("frhint.vdec.blacklist", TYPE_STR);
     }

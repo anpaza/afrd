@@ -12,7 +12,7 @@
     <string name="msg_title_critical_error">Критическая ошибка</string>
     <string name="l_off">Выкл</string>
     <string name="l_on">Вкл</string>
-    <string name="arch_not_supported">AFRd не скомпилирован для архитектуры текущего процессора
+    <string name="arch_not_supported">AFRd не скомпилирован для архитектуры \'%s\'
     </string>
     <string name="failed_copy_raw">Не удалось скопировать файл ресурсов в %s</string>
     <string name="prefs_enable">Включить Автоматический Подбор Частоты</string>
@@ -141,8 +141,14 @@
     <string name="prefsum_vdec_blacklist">Список декодеров видео, для которых afrd не будет
         переключать частоту
     </string>
-    <string name="prefs_frhint_vdec_blacklist">Декодеры видео, генерирующие неверный FRAME_RATE_HINT</string>
+    <string name="prefs_frhint_vdec_blacklist">Декодеры видео, генерирующие неверный
+        FRAME_RATE_HINT
+    </string>
     <string name="prefsum_frhint_vdec_blacklist">Список декодеров, для которых afrd не будет
         использовать FRAME_RATE_HINT. Другие источники дадут значительно лучший результат
+    </string>
+    <string name="prefs_switch_ignore">Игнорировать интервалы ВЫКЛ/ВКЛ короче чем</string>
+    <string name="prefsum_switch_ignore">Игнорировать события ВКЛ которые происходят менее через
+        заданный интервал от события ВЫКЛ (помогает игнорировать перемотки)
     </string>
 </resources>

@@ -305,8 +305,6 @@ int main (int argc, char *const *argv)
 
 	// ensure a sane umask so that user processes can read our files
 	umask (022);
-	// switch to root namespace
-	switch_namespace (1);
 
 	g_program = argv [0];
 
@@ -344,6 +342,10 @@ int main (int argc, char *const *argv)
 				show_version ();
 				return EXIT_FAILURE;
 		}
+
+	if (g_daemon)
+		// switch to root namespace
+		switch_namespace (1);
 
 	if (g_kill_daemon) {
 		ret = kill_daemon ();

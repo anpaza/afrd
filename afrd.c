@@ -77,6 +77,11 @@ static mstime_t g_ost_blackout;
 static mstime_t g_ost_config;
 
 /**
+ * Time stamp of the last refresh rate restore event
+ */
+static mstime_t g_ost_off;
+
+/**
  * Available sources for fps values
  */
 typedef enum
@@ -550,6 +555,7 @@ static void blackout ()
 static void framerate_restore (bool only_if_black)
 {
 	mstime_disable (&g_ost_blackout);
+	mstime_disable (&g_ost_switch);
 
 	if (only_if_black && !g_blackened)
 		return;
@@ -708,6 +714,18 @@ static void delay_framerate_switch (bool restore, int hz, const char *modalias)
 {
 	mstime_disable (&g_ost_blackout);
 	mstime_disable (&g_ost_switch);
+
+	if (g_switch_ignore) {
+		if (restore)
+			mstime_arm (&g_ost_off, g_switch_ignore);
+		else if (mstime_enabled (&g_ost_off) && !mstime_expired (&g_ost_off)) {
+			trace (1, "Ignore framerate switch because restore event was %d ms ago\n",
+				g_switch_ignore - mstime_left (&g_ost_off));
+			memset (&g_state, 0, sizeof (g_state));
+			update_stats ();
+			return;
+		}
+	}
 
 	mstime_t delay = restore ? g_switch_delay_off : g_switch_delay_on;
 
@@ -975,6 +993,7 @@ int afrd_run ()
 	mstime_disable (&g_ost_switch);
 	mstime_disable (&g_ost_hdmi);
 	mstime_disable (&g_ost_blackout);
+	mstime_disable (&g_ost_off);
 
 	// Check config timestamp timer
 	mstime_arm (&g_ost_config, 1);
@@ -1151,9 +1170,12 @@ int afrd_init ()
 	g_switch_delay_retry = cfg_get_int ("switch.delay.retry", DEFAULT_SWITCH_DELAY_RETRY);
 	g_switch_timeout = cfg_get_int ("switch.timeout", DEFAULT_SWITCH_TIMEOUT);
 	g_switch_blackout = cfg_get_int ("switch.blackout", DEFAULT_SWITCH_BLACKOUT);
+	g_switch_ignore = cfg_get_int ("switch.ignore", DEFAULT_SWITCH_IGNORE);
 
-	trace (1, "\tswitch delays: on %d, off %d, retry %d ms, blackout %d ms\n",
-		g_switch_delay_on, g_switch_delay_off, g_switch_delay_retry, g_switch_blackout);
+	trace (1, "\tswitch delays: on %d, off %d, retry %d ms\n",
+		g_switch_delay_on, g_switch_delay_off, g_switch_delay_retry);
+	trace (1, "\t\ttimeout %d ms, blackout %d ms, ignore %d ms\n",
+		g_switch_timeout, g_switch_blackout, g_switch_ignore);
 
 	g_vdec_sysfs = cfg_get_str ("vdec.sysfs", DEFAULT_VDEC_SYSFS);
 	strlist_load (&g_vdec_blacklist, "vdec.blacklist", "vdec blacklist");
