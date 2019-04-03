@@ -2,3 +2,7 @@ libs
 obj
 out
 *.ini
+releases
+hotkeys
+settings
+unused
