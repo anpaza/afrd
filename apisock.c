@@ -119,6 +119,7 @@ static void apisock_cmd (char *cmd, int fd, struct sockaddr *src_addr, socklen_t
 		} else if (apisock_is_cmd (&cmd, "status")) {
 			char status [200];
 			int sl = snprintf (status, sizeof (status),
+				"stamp:%d\n"
 				"enabled:%d\n"
 				"active:%d\n"
 				"blackened:%d\n"
@@ -126,6 +127,7 @@ static void apisock_cmd (char *cmd, int fd, struct sockaddr *src_addr, socklen_t
 				"build:%s\n"
 				"current hz:%d\n"
 				"original hz:%d\n",
+				g_afrd_stats.crc32,
 				g_afrd_stats.enabled ? 1 : 0,
 				g_afrd_stats.switched ? 1 : 0,
 				g_afrd_stats.blackened ? 1 : 0,

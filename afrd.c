@@ -33,6 +33,7 @@ static int g_switch_delay_off;
 static int g_switch_delay_retry;
 static int g_switch_timeout;
 static int g_switch_blackout;
+static int g_switch_ignore;
 
 static int g_mode_prefer_exact;
 static int g_mode_use_fract;
