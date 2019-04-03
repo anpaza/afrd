@@ -9,13 +9,15 @@ android {
         versionCode 2
         versionName '0.2.5'
         targetSdkVersion 28
-        versionNameSuffix 'beta2'
-        project.ext.set ("archivesBaseName", "${applicationId}-${versionName}${versionNameSuffix}".toString ());
+        versionNameSuffix 'beta4'
+        project.ext.set("archivesBaseName", "${applicationId}-${versionName}${versionNameSuffix}".toString());
     }
     buildTypes {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
         }
     }
     buildToolsVersion '28.0.3'

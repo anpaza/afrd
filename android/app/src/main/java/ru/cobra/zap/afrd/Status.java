@@ -1,6 +1,7 @@
 package ru.cobra.zap.afrd;
 
 import android.content.res.Resources;
+import android.util.Log;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -24,8 +25,10 @@ public class Status
     private int mShmSize;
     private int mLastStamp;
     private boolean mLastStampValid = false;
-    /// true if service should give up because of SELinux and such
-    private boolean mGiveUp = false;
+    /// true if service should give up because of frequent failures
+    public boolean mGiveUp = false;
+    private long mFailureLastStamp = 0;
+    private int mFailureCount = 0;
 
     /// true if afrd is enabled
     public boolean mEnabled;
@@ -76,10 +79,33 @@ public class Status
             mShm.order (ByteOrder.LITTLE_ENDIAN);
             return true;
         }
-        catch (IOException err)
+        catch (IOException exc)
         {
-            if (err.getCause ().getMessage ().contains ("EACCES"))
+            jfun.logExc ("ipc open", exc);
+
+            Throwable cause = exc.getCause ();
+            if ((cause != null) &&
+                (cause.getMessage ().contains ("EACCES")))
+            {
                 mGiveUp = true;
+                Log.e ("afrd", "It seems like SELinux is enabled, giving up");
+            }
+            else
+            {
+                long prev = mFailureLastStamp;
+                mFailureLastStamp = System.currentTimeMillis ();
+                if ((mFailureLastStamp - prev) < 3000)
+                {
+                    mFailureCount++;
+                    if (mFailureCount > 10)
+                    {
+                        Log.e ("afrd", "Too many failures, giving up");
+                        mGiveUp = true;
+                    }
+                    return false;
+                }
+                mFailureCount = 0;
+            }
 
             return false;
         }
@@ -99,8 +125,9 @@ public class Status
         {
             mShmFile.close ();
         }
-        catch (IOException ignored)
+        catch (IOException exc)
         {
+            jfun.logExc ("ipc close", exc);
         }
         mShmFile = null;
     }

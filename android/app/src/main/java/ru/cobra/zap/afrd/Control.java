@@ -2,15 +2,13 @@ package ru.cobra.zap.afrd;
 
 import android.content.Context;
 import android.os.Build;
+import android.util.Log;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.util.Arrays;
 
 import eu.chainfire.libsuperuser.Shell;
 import ru.cobra.zap.afrdctl.R;
@@ -39,6 +37,7 @@ public class Control
     {
         mAfrd.setExecutable (true);
         String[] cmd = new String [] { mAfrd.getPath () + " -k -D " + mIni.getPath () };
+        Log.d ("afrd", "Run: " + Arrays.toString (cmd));
         Shell.run ("su", cmd, null, false);
     }
 
@@ -58,39 +57,18 @@ public class Control
             {
                 int pid = Integer.parseInt (new String (data, 0, n));
                 fis = new FileInputStream ("/proc/" + pid + "/cmdline");
-                n = fis.read (data);
+                fis.read (data);
                 fis.close ();
 
-                if (javafun.strcmp (mAfrd.getPath ().getBytes (), 0, data, 0) == 0)
+                if (mAfrd.getPath ().equals (jfun.cstr (data)))
                     return true;
+
+                Log.d ("afrd", "Cmdline: " + new String (data));
             }
         }
-        catch (Exception ignored)
+        catch (Exception exc)
         {
-        }
-
-        return false;
-    }
-
-    private static boolean extractFile (Context ctx, int res_id, File outf)
-    {
-        try
-        {
-            InputStream is = ctx.getResources ().openRawResource (res_id);
-            FileOutputStream fs = new FileOutputStream (outf);
-
-            byte[] buff = new byte[4096];
-            int n;
-            while ((n = is.read (buff)) != -1)
-                fs.write (buff, 0, n);
-
-            fs.close ();
-            is.close ();
-
-            return true;
-        }
-        catch (IOException ignored)
-        {
+            jfun.logExc ("isRunning", exc);
         }
 
         return false;
@@ -109,7 +87,7 @@ public class Control
             // Android 6 or 7
             res_id = R.raw.afrd_7;
 
-        if (!extractFile (ctx, res_id, mIni))
+        if (!jfun.extractFile (ctx, res_id, mIni))
             return ctx.getString (R.string.failed_copy_raw, mIni.getPath ());
 
         return "";
@@ -134,16 +112,16 @@ public class Control
                     continue;
             }
 
-
             for (int i = 0; ; i++)
             {
-                if (extractFile (ctx, res_id, mAfrd))
+                if (jfun.extractFile (ctx, res_id, mAfrd))
                     break;
 
                 switch (i)
                 {
                     case 0:
                         String[] cmd = new String [] { mAfrd.getPath () + " -k", "rm -f " + mAfrd.getPath () };
+                        Log.d ("afrd", "Run: " + Arrays.toString (cmd));
                         Shell.run ("su", cmd, null, false);
                         break;
 
@@ -171,8 +149,9 @@ public class Control
             else
                 mIni.setLastModified (now);
         }
-        catch (IOException e)
+        catch (IOException exc)
         {
+            jfun.logExc ("reload", exc);
         }
     }
 }

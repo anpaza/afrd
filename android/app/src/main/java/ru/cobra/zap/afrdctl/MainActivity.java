@@ -156,6 +156,7 @@ public class MainActivity extends Activity
         return true;
     }
 
+    @SuppressWarnings( "deprecation" )
     public void limitDpi ()
     {
         Configuration configuration = getResources ().getConfiguration ();

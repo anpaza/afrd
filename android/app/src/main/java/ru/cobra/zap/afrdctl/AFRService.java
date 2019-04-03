@@ -12,6 +12,7 @@ import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
+import android.util.Log;
 import android.widget.Toast;
 
 import ru.cobra.zap.afrd.Control;
@@ -25,9 +26,12 @@ public class AFRService extends Service
     private Handler mHzTimer = new Handler ();
     private Control mControl;
     private Status mStatus = new Status ();
-    private int oldRefreshRate = -1;
-    private boolean oldBlackScreen = false;
+    private int mOldRefreshRate = -1;
+    private boolean mOldBlackScreen = false;
     private SharedPreferences mOptions;
+    private long mLastRestartTime = 0;
+    private int mFastRestartCount = 0;
+    private boolean mGiveUpCheckRestart = false;
 
     @Override
     public int onStartCommand (Intent intent, int flags, int startId)
@@ -63,11 +67,13 @@ public class AFRService extends Service
             {
                 checkDaemon ();
                 updateNotification ();
-                mTimer.postDelayed (this, 1000);
+                if (!mGiveUpCheckRestart)
+                    mTimer.postDelayed (this, 1000);
             }
         });
     }
 
+    @SuppressWarnings( "deprecation" )
     private void updateNotification ()
     {
         if (!mStatus.ok ())
@@ -76,14 +82,14 @@ public class AFRService extends Service
         if (!mStatus.refresh ())
             return;
 
-        if ((oldRefreshRate != mStatus.mCurrentHz) ||
-            (oldBlackScreen != mStatus.mBlackened))
+        if ((mOldRefreshRate != mStatus.mCurrentHz) ||
+            (mOldBlackScreen != mStatus.mBlackened))
         {
-            boolean show_toast = (oldRefreshRate != -1) && !mStatus.mBlackened &&
+            boolean show_toast = (mOldRefreshRate != -1) && !mStatus.mBlackened &&
                 mOptions.getBoolean ("toast_hz", true);
 
-            oldRefreshRate = mStatus.mCurrentHz;
-            oldBlackScreen = mStatus.mBlackened;
+            mOldRefreshRate = mStatus.mCurrentHz;
+            mOldBlackScreen = mStatus.mBlackened;
 
             if (show_toast)
                 mHzTimer.postDelayed (new Runnable ()
@@ -148,8 +154,23 @@ public class AFRService extends Service
 
     private void checkDaemon ()
     {
-        if (mControl.isRunning ())
+        if (mGiveUpCheckRestart ||
+            mControl.isRunning ())
             return;
+
+        long prev = mLastRestartTime;
+        mLastRestartTime = System.currentTimeMillis ();
+        if ((mLastRestartTime - prev) < 3000)
+        {
+            mFastRestartCount++;
+            if (mFastRestartCount > 5)
+            {
+                Log.e ("afrd", "Restarting too often, giving up");
+                mGiveUpCheckRestart = true;
+            }
+            return;
+        }
+        mFastRestartCount = 0;
 
         mControl.restart ();
     }
