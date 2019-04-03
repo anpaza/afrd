@@ -512,12 +512,17 @@ static bool query_vdec ()
 	if (frame_dur)
 		hz = hz_round ((256*96000 + frame_dur / 2) / frame_dur);
 
-	if ((hz == 0) && (fps > 0) && (fps <= 1000)) {
+	if (hz == 0) {
 		switch (fps) {
 			case 23: hz = (2997 * 256 + 62) / 125; break;
 			case 29: hz = (2997 * 256 + 50) / 100; break;
 			case 59: hz = (5994 * 256 + 50) / 100; break;
-			default: hz = fps << 8; break;
+			case 24:
+			case 25:
+			case 30:
+			case 50:
+			case 60: hz = (fps << 8); break;
+			default: trace (3, "ignoring non-standard frame rate\n"); break;
 		}
 	}
 
