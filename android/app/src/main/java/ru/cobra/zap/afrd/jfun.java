@@ -50,13 +50,25 @@ class jfun
 
     static String cstr (byte[] data, int ofs)
     {
-        int end = ofs;
-        while (end < data.length && data [end] != '\0')
-            end++;
+        int cur = ofs;
+        while (cur < data.length && data [cur] != '\0')
+            cur++;
 
         // String(byte[], int, int) is deprecated in API27
         // and StringBuilder does not support byte[] - what a mess
-        return new String (Arrays.copyOfRange (data, ofs, end - ofs));
+        return new String (Arrays.copyOfRange (data, ofs, cur));
+    }
+
+    static String cstr (byte[] data, int ofs, int maxlen)
+    {
+        int cur = ofs;
+        int end = ofs + maxlen;
+        while (cur < end && data [cur] != '\0')
+            cur++;
+
+        // String(byte[], int, int) is deprecated in API27
+        // and StringBuilder does not support byte[] - what a mess
+        return new String (Arrays.copyOfRange (data, ofs, cur));
     }
 
     static void logExc (String func, Exception exc)

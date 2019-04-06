@@ -527,7 +527,7 @@ static bool query_vdec ()
 			case 30:
 			case 50:
 			case 60: hz = (fps << 8); break;
-			default: trace (3, "ignoring non-standard frame rate\n"); break;
+			default: trace (3, "ignoring non-standard frame rate %d fps\n", fps); break;
 		}
 	}
 
@@ -718,10 +718,14 @@ static void delay_framerate_switch (bool restore, int hz, const char *modalias)
 	if (g_switch_ignore) {
 		if (restore)
 			mstime_arm (&g_ost_off, g_switch_ignore);
-		else if (mstime_enabled (&g_ost_off) && !mstime_expired (&g_ost_off)) {
+		else if (mstime_enabled (&g_ost_off) &&
+		         !mstime_expired (&g_ost_off) &&
+		         !g_blackened) {
 			trace (1, "Ignore framerate switch because restore event was %d ms ago\n",
 				g_switch_ignore - mstime_left (&g_ost_off));
-			memset (&g_state, 0, sizeof (g_state));
+			g_state.restore = false;
+			mstime_disable (&g_ost_blackout);
+			mstime_disable (&g_ost_switch);
 			update_stats ();
 			return;
 		}

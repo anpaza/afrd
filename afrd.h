@@ -65,6 +65,8 @@ typedef struct
 extern const char *g_program;
 // program version
 extern const char *g_version;
+// program version suffix
+extern const char *g_ver_sfx;
 // path to PID file
 extern const char *g_pidfile;
 // program build date/time
@@ -195,6 +197,8 @@ typedef struct
 	uint32_t current_hz;
 	/// original display refresh rate
 	uint32_t original_hz;
+	/// afrd version suffix
+	char ver_sfx [8];
 	/// a copy of crc32 from first field
 	uint32_t crc32_copy;
 } __attribute__((packed)) afrd_shmem_t;

@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.Locale;
 import java.util.zip.CRC32;
 
 import ru.cobra.zap.afrdctl.R;
@@ -25,10 +26,6 @@ public class Status
     private int mShmSize;
     private int mLastStamp;
     private boolean mLastStampValid = false;
-    /// true if service should give up because of frequent failures
-    public boolean mGiveUp = false;
-    private long mFailureLastStamp = 0;
-    private int mFailureCount = 0;
 
     /// true if afrd is enabled
     public boolean mEnabled;
@@ -40,14 +37,20 @@ public class Status
     public int mVersionHi;
     /// afrd version low number
     public int mVersionLo;
-    /// arrd revision number
+    /// afrd revision number
     public int mVersionRev;
+    /// afrd version suffix
+    public String mVersionSfx;
+    /// Full version name
+    public String mVersion;
     /// afrd build date
     public String mBuildDate;
     /// current screen refresh rate, .8 fixed-point
     public int mCurrentHz;
     /// original screen refresh rate, .8 fixed-point
     public int mOriginalHz;
+    /// Failure detector to stop querying afrd status
+    public static FailureDetector mFail = new FailureDetector ("daemon status");
 
     /**
      * Check if IPC channel has been successfully opened
@@ -66,7 +69,7 @@ public class Status
      */
     public boolean open ()
     {
-        if (mGiveUp)
+        if (mFail.giveUp ())
             return false;
 
         close ();
@@ -87,24 +90,12 @@ public class Status
             if ((cause != null) &&
                 (cause.getMessage ().contains ("EACCES")))
             {
-                mGiveUp = true;
                 Log.e ("afrd", "It seems like SELinux is enabled, giving up");
+                mFail.fatal ();
             }
             else
             {
-                long prev = mFailureLastStamp;
-                mFailureLastStamp = System.currentTimeMillis ();
-                if ((mFailureLastStamp - prev) < 3000)
-                {
-                    mFailureCount++;
-                    if (mFailureCount > 10)
-                    {
-                        Log.e ("afrd", "Too many failures, giving up");
-                        mGiveUp = true;
-                    }
-                    return false;
-                }
-                mFailureCount = 0;
+                mFail.failure ();
             }
 
             return false;
@@ -139,7 +130,7 @@ public class Status
      */
     public boolean refresh ()
     {
-        if (mShm == null || mGiveUp)
+        if (mShm == null || mFail.giveUp ())
             return false;
 
         // check if buffer changed since our last update
@@ -161,7 +152,7 @@ public class Status
         ByteBuffer buff = ByteBuffer.wrap (data);
         buff.order (ByteOrder.LITTLE_ENDIAN);
 
-        // now check buffer for consistence
+        // now check if buffer is consistent
         stamp = buff.getInt (0);
         int stamp2 = buff.getInt (size - 4);
         if (stamp != stamp2)
@@ -182,9 +173,16 @@ public class Status
         mVersionHi = buff.get (9);
         mVersionLo = buff.get (10);
         mVersionRev = buff.get (11);
-        mBuildDate = new String (data, 12, 24);
+        mBuildDate = jfun.cstr (data, 12, 24);
         mCurrentHz = buff.getInt (36);
         mOriginalHz = buff.getInt (40);
+        if (mShmSize >= 44+8)
+            mVersionSfx = jfun.cstr (data, 44, 8);
+        else
+            mVersionSfx = "";
+
+        mVersion = String.format (Locale.getDefault (),
+            "%d.%d.%d%s", mVersionHi, mVersionLo, mVersionRev, mVersionSfx);
 
         return true;
     }

@@ -185,10 +185,18 @@ public class MainActivity extends Activity
     private boolean prepareConfig ()
     {
         SharedPreferences prefs = getSharedPreferences ("requisites", 0);
-        int versionCode = getVersionCode ();
+        boolean rewrite = true;
 
-        if (!mControl.mIni.exists () ||
-            (prefs.getInt ("afrd_ini_ver", -1) != versionCode))
+        if (mControl.mIni.exists ())
+            try
+            {
+                rewrite = !prefs.getString ("afrd_ini_ver", "").equals (mPackageInfo.versionName);
+            }
+            catch (java.lang.ClassCastException ignored)
+            {
+            }
+
+        if (rewrite)
         {
             String res = mControl.extractConfig (this);
             if (!res.isEmpty ())
@@ -197,7 +205,7 @@ public class MainActivity extends Activity
                 return false;
             }
 
-            prefs.edit ().putInt ("afrd_ini_ver", versionCode).apply ();
+            prefs.edit ().putString ("afrd_ini_ver", mPackageInfo.versionName).apply ();
         }
 
         return updateConfig ();
@@ -229,9 +237,18 @@ public class MainActivity extends Activity
     private boolean prepareDaemon ()
     {
         SharedPreferences prefs = getSharedPreferences ("requisites", 0);
+        boolean rewrite = true;
 
-        if (mControl.mAfrd.exists () &&
-            (prefs.getString ("afrd_ver", "").equals (mPackageInfo.versionName)))
+        if (mControl.mAfrd.exists ())
+            try
+            {
+                rewrite = !prefs.getString ("afrd_ver", "").equals (mPackageInfo.versionName);
+            }
+            catch (java.lang.ClassCastException ignored)
+            {
+            }
+
+        if (!rewrite)
             return true;
 
         String res = mControl.extractDaemon (this);
@@ -262,14 +279,6 @@ public class MainActivity extends Activity
             }
         });
         return true;
-    }
-
-    int getVersionCode ()
-    {
-        /*if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
-            return (int)mPackageInfo.getLongVersionCode ();
-        else*/
-        return mPackageInfo.versionCode;
     }
 
     private void showMessage (String title, String msg, DialogInterface.OnClickListener onOk)

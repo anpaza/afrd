@@ -52,6 +52,7 @@ bool shmem_init (bool read)
 	if (!read) {
 		g_afrd_stats.size = sizeof (afrd_shmem_t);
 		strncpy (g_afrd_stats.bdate, g_bdate, sizeof (g_afrd_stats.bdate));
+		strncpy (g_afrd_stats.ver_sfx, g_ver_sfx, sizeof (g_afrd_stats.ver_sfx));
 
 		// we can safely assume version format "%d.%d.%d"
 		char *cur = (char *)g_version;

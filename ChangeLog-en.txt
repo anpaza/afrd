@@ -1,4 +1,4 @@
-0.2.5 *UNRELEASED*
+0.3.0 Thu Apr 4 08:56:06 MSK 2019
 
     Now daemon checks if another daemon is already running and won't
     run a second copy.
@@ -29,8 +29,11 @@
     can tell afrd the expected framerate of the starting video,
     and more (see docs).
 
-    at start, afrd will now switch to root namespace to avoid problems
-    with the 'use separate namespaces' option of SuperSU.
+    When started as daemon, afrd will now switch to root namespace
+    to avoid problems with the 'use separate namespaces' option of SuperSU.
+
+    Added switch.ignore config option and the equivalent setting in
+    Android application to ignore video rewinds.
 
 0.2.4 Sun Mar 10 18:22:32 2019 +0300
 

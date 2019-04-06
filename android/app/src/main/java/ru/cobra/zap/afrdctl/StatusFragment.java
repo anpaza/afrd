@@ -97,8 +97,7 @@ public class StatusFragment extends Fragment
         mEnabled.setChecked (mAfrdStatus.mEnabled);
         mModified.setChecked (mAfrdStatus.mModified);
         mBlackened.setChecked (mAfrdStatus.mBlackened);
-        mVersion.setText (String.format (Locale.getDefault (),
-            "%d.%d.%d", mAfrdStatus.mVersionHi, mAfrdStatus.mVersionLo, mAfrdStatus.mVersionRev));
+        mVersion.setText (mAfrdStatus.mVersion);
         mBuildDate.setText (mAfrdStatus.mBuildDate);
         mCurrentHz.setText (Status.hz2str (getResources (), mAfrdStatus.mCurrentHz));
         mOriginalHz.setText (Status.hz2str (getResources (), mAfrdStatus.mOriginalHz));

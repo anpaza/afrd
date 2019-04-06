@@ -39,6 +39,8 @@ public class Control
         String[] cmd = new String [] { mAfrd.getPath () + " -k -D " + mIni.getPath () };
         Log.d ("afrd", "Run: " + Arrays.toString (cmd));
         Shell.run ("su", cmd, null, false);
+        // give status another chance
+        Status.mFail.success ();
     }
 
     public boolean isRunning ()

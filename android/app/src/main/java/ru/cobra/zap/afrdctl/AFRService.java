@@ -15,6 +15,8 @@ import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
 
+import java.util.Locale;
+
 import ru.cobra.zap.afrd.Control;
 import ru.cobra.zap.afrd.Status;
 
@@ -29,9 +31,6 @@ public class AFRService extends Service
     private int mOldRefreshRate = -1;
     private boolean mOldBlackScreen = false;
     private SharedPreferences mOptions;
-    private long mLastRestartTime = 0;
-    private int mFastRestartCount = 0;
-    private boolean mGiveUpCheckRestart = false;
 
     @Override
     public int onStartCommand (Intent intent, int flags, int startId)
@@ -65,10 +64,14 @@ public class AFRService extends Service
             @Override
             public void run ()
             {
+                if (!mStatus.ok ())
+                    mStatus.open ();
+                boolean changed = mStatus.refresh ();
+
                 checkDaemon ();
-                updateNotification ();
-                if (!mGiveUpCheckRestart)
-                    mTimer.postDelayed (this, 1000);
+                if (changed)
+                    updateNotification ();
+                mTimer.postDelayed (this, 5000);
             }
         });
     }
@@ -77,9 +80,6 @@ public class AFRService extends Service
     private void updateNotification ()
     {
         if (!mStatus.ok ())
-            mStatus.open ();
-
-        if (!mStatus.refresh ())
             return;
 
         if ((mOldRefreshRate != mStatus.mCurrentHz) ||
@@ -154,24 +154,24 @@ public class AFRService extends Service
 
     private void checkDaemon ()
     {
-        if (mGiveUpCheckRestart ||
-            mControl.isRunning ())
-            return;
-
-        long prev = mLastRestartTime;
-        mLastRestartTime = System.currentTimeMillis ();
-        if ((mLastRestartTime - prev) < 3000)
+        if (mStatus.ok ())
         {
-            mFastRestartCount++;
-            if (mFastRestartCount > 5)
-            {
-                Log.e ("afrd", "Restarting too often, giving up");
-                mGiveUpCheckRestart = true;
-            }
-            return;
-        }
-        mFastRestartCount = 0;
+            if (mStatus.mVersion.equals (BuildConfig.VERSION_NAME))
+                return;
 
+            Log.i ("afrd", String.format (Locale.getDefault (),
+                "Restarting daemon because of wrong version (%s, expected %s)",
+                mStatus.mVersion, BuildConfig.VERSION_NAME));
+        }
+        else
+        {
+            if (!Status.mFail.giveUp ())
+                return;
+
+            Log.i ("afrd", "(re-)Starting afrd because failed to get daemon status");
+        }
+
+        mStatus.close ();
         mControl.restart ();
     }
 }
