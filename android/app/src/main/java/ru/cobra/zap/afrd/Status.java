@@ -3,6 +3,7 @@ package ru.cobra.zap.afrd;
 import android.content.res.Resources;
 import android.util.Log;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -12,7 +13,7 @@ import java.nio.channels.FileChannel;
 import java.util.Locale;
 import java.util.zip.CRC32;
 
-import ru.cobra.zap.afrdctl.R;
+import ru.cobra.zap.afrd.gui.R;
 
 /**
  * This class provides afrd status info.
@@ -21,7 +22,8 @@ public class Status
 {
     private static final String AFRD_SHM = "/dev/run/afrd.ipc";
 
-    private RandomAccessFile mShmFile;
+    private File mShmFile = new File (AFRD_SHM);
+    private RandomAccessFile mShmRAFile;
     private MappedByteBuffer mShm;
     private int mShmSize;
     private int mLastStamp;
@@ -76,9 +78,9 @@ public class Status
 
         try
         {
-            mShmFile = new RandomAccessFile (AFRD_SHM, "r");
-            mShmSize = (int) mShmFile.length ();
-            mShm = mShmFile.getChannel ().map (FileChannel.MapMode.READ_ONLY, 0, mShmSize);
+            mShmRAFile = new RandomAccessFile (AFRD_SHM, "r");
+            mShmSize = (int) mShmRAFile.length ();
+            mShm = mShmRAFile.getChannel ().map (FileChannel.MapMode.READ_ONLY, 0, mShmSize);
             mShm.order (ByteOrder.LITTLE_ENDIAN);
             return true;
         }
@@ -109,18 +111,18 @@ public class Status
     {
         mLastStampValid = false;
         mShm = null;
-        if (mShmFile == null)
+        if (mShmRAFile == null)
             return;
 
         try
         {
-            mShmFile.close ();
+            mShmRAFile.close ();
         }
         catch (IOException exc)
         {
             jfun.logExc ("ipc close", exc);
         }
-        mShmFile = null;
+        mShmRAFile = null;
     }
 
     /**
@@ -130,7 +132,7 @@ public class Status
      */
     public boolean refresh ()
     {
-        if (mShm == null || mFail.giveUp ())
+        if (!checkShm () || mFail.giveUp ())
             return false;
 
         // check if buffer changed since our last update
@@ -142,7 +144,15 @@ public class Status
         if (size != mShmSize)
         {
             close ();
-            return false;
+            // to minimize delays, try immediately to re-open ipc
+            if (!open ())
+                return false;
+            size = mShm.getShort (4);
+            if (size != mShmSize)
+            {
+                close ();
+                return false;
+            }
         }
 
         // make a replica of the shared data
@@ -185,6 +195,18 @@ public class Status
             "%d.%d.%d%s", mVersionHi, mVersionLo, mVersionRev, mVersionSfx);
 
         return true;
+    }
+
+    private boolean checkShm ()
+    {
+        if (!ok ())
+            return false;
+
+        if (mShmFile.exists ())
+            return true;
+
+        close ();
+        return false;
     }
 
     public static String hz2str (Resources res, int hz)

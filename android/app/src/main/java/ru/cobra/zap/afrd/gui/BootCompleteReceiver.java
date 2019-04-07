@@ -1,4 +1,4 @@
-package ru.cobra.zap.afrdctl;
+package ru.cobra.zap.afrd.gui;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;

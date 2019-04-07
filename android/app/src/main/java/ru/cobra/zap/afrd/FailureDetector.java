@@ -21,11 +21,11 @@ public class FailureDetector
     /// Number of consecutive failures
     private int mFailureCount = 0;
     /// Max number of failures to shift into the 'give up' state
-    private final int mMaxFailures = 5;
+    private final int mMaxFailures = 3;
     /// the minimal interval between failures to take them into account
-    private final int mFailureMinInterval = 500;
+    private final int mFailureMinInterval = 1000;
     /// the maximal interval between failures to take them into account
-    private final int mFailureMaxInterval = 3000;
+    private final int mFailureMaxInterval = 10000;
 
     public FailureDetector (String name)
     {
@@ -55,7 +55,7 @@ public class FailureDetector
         if (mFailureLastStamp == 0)
         {
             mFailureLastStamp = now;
-            mFailureCount = 0;
+            mFailureCount = 1;
             return;
         }
 
@@ -72,7 +72,7 @@ public class FailureDetector
 
         mFailureLastStamp = now;
         mFailureCount++;
-        if (mFailureCount > mMaxFailures)
+        if (mFailureCount >= mMaxFailures)
         {
             Log.e ("afrd", mName + ": Too many failures, giving up");
             mGiveUp = true;

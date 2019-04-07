@@ -517,7 +517,7 @@ static bool query_vdec ()
 	if (frame_dur)
 		hz = hz_round ((256*96000 + frame_dur / 2) / frame_dur);
 
-	if (hz == 0) {
+	if ((hz == 0) && (fps != 0)) {
 		switch (fps) {
 			case 23: hz = (2997 * 256 + 62) / 125; break;
 			case 29: hz = (2997 * 256 + 50) / 100; break;

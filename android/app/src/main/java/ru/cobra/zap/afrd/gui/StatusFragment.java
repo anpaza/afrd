@@ -1,4 +1,4 @@
-package ru.cobra.zap.afrdctl;
+package ru.cobra.zap.afrd.gui;
 
 import android.app.Fragment;
 import android.content.Context;
@@ -9,8 +9,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.ToggleButton;
-
-import java.util.Locale;
 
 import ru.cobra.zap.afrd.Status;
 

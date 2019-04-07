@@ -17,7 +17,7 @@
                     android:entryValues="@array/mode_use_fract_value" android:key="mode_use_fract"
                     android:summary="@string/prefsum_mode_use_fract"
                     android:title="@string/prefs_mode_use_fract"/>
-    <PreferenceScreen android:fragment="ru.cobra.zap.afrdctl.SettingsFragment"
+    <PreferenceScreen android:fragment="ru.cobra.zap.afrd.gui.SettingsFragment"
                       android:key="timings" android:title="@string/prefs_group_timings">
         <EditTextPreference android:defaultValue="300" android:key="switch_delay_on"
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
@@ -44,7 +44,7 @@
                             android:singleLine="true" android:summary="@string/prefsum_switch_ignore"
                             android:title="@string/prefs_switch_ignore"/>
     </PreferenceScreen>
-    <PreferenceScreen android:fragment="ru.cobra.zap.afrdctl.SettingsFragment"
+    <PreferenceScreen android:fragment="ru.cobra.zap.afrd.gui.SettingsFragment"
                       android:key="advanced" android:title="@string/settings_advanced">
         <EditTextPreference android:key="mode_blacklist_rates" android:selectAllOnFocus="false"
                             android:singleLine="true"

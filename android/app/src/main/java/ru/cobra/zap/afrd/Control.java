@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import eu.chainfire.libsuperuser.Shell;
-import ru.cobra.zap.afrdctl.R;
+import ru.cobra.zap.afrd.gui.R;
 
 /**
  * This class provides a low-level API for communicating with afrd,

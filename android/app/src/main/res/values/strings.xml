@@ -154,4 +154,5 @@
     <string name="prefsum_switch_ignore">Ignore ON switches that happen in less than this number of
         milliseconds from previous OFF switch (helps to ignore video rewinding)
     </string>
+    <string name="notif_notrunning">Daemon is not running</string>
 </resources>
