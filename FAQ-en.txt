@@ -82,3 +82,20 @@
 
 ! If you want display to turn off after the start of video, wait first
 ! for the original refresh rate to restore.
+
+? What does the option that allows to choose between "fractional" and
+? "integer" refresh rates?
+
+! Usually AFRd will correctly "guess" the video frame rate (23.976 vs 24
+! and so on), but sometimes it may do it wrong.
+
+! If you mostly watch videos with "fractional" frame rates (23.976, 29.97,
+! 59.94 fps), or if you mostly watch videos with "integer" frame rates
+! (24, 30, 60 fps), you may decide to set this option to avoid AFRd
+! errors altogether.
+
+! But I recommend keeping this option to "auto" - first, because AFRd
+! most of the time does the right job and, second, because most likely
+! you won't see the difference between a 23.976 and 24 Hz refresh,
+! a slight error here will result in just a single frame inserted
+! or removed every ~41 seconds.

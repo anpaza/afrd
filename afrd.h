@@ -24,7 +24,6 @@
 
 #define DEFAULT_HDMI_DEV		"/sys/class/amhdmitx/amhdmitx0"
 #define DEFAULT_HDMI_STATE		"/sys/class/switch/hdmi/state"
-#define DEFAULT_HDMI_DELAY		300
 #define DEFAULT_VIDEO_MODE		"/sys/class/display/mode"
 #define DEFAULT_VDEC_SYSFS		"/sys/class/vdec"
 #define DEFAULT_SWITCH_DELAY_ON		250
@@ -33,6 +32,7 @@
 #define DEFAULT_SWITCH_TIMEOUT		3000
 #define DEFAULT_SWITCH_BLACKOUT		150
 #define DEFAULT_SWITCH_IGNORE		200
+#define DEFAULT_SWITCH_HDMI		2000
 #define DEFAULT_MODE_PREFER_EXACT	0
 #define DEFAULT_MODE_USE_FRACT		0
 

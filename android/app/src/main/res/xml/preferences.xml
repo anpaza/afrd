@@ -43,6 +43,10 @@
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
                             android:singleLine="true" android:summary="@string/prefsum_switch_ignore"
                             android:title="@string/prefs_switch_ignore"/>
+        <EditTextPreference android:defaultValue="2000" android:key="switch_hdmi"
+                            android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
+                            android:singleLine="true" android:summary="@string/prefsum_switch_hdmi"
+                            android:title="@string/prefs_switch_hdmi"/>
     </PreferenceScreen>
     <PreferenceScreen android:fragment="ru.cobra.zap.afrd.gui.SettingsFragment"
                       android:key="advanced" android:title="@string/settings_advanced">

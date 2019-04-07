@@ -152,4 +152,8 @@
         заданный интервал от события ВЫКЛ (помогает игнорировать перемотки)
     </string>
     <string name="notif_notrunning">Демон не работает</string>
+    <string name="prefsum_switch_hdmi">Задержка перед перечитыванием возможностей дисплея после
+        переподключения HDMI. Установите в 0 для отключения
+    </string>
+    <string name="prefs_switch_hdmi">Задержать считывание возможностей дисплея на</string>
 </resources>

@@ -34,6 +34,7 @@ static int g_switch_delay_retry;
 static int g_switch_timeout;
 static int g_switch_blackout;
 static int g_switch_ignore;
+static int g_switch_hdmi;
 
 static int g_mode_prefer_exact;
 static int g_mode_use_fract;
@@ -876,11 +877,11 @@ static void handle_uevent (char *msg, ssize_t size)
 		else if (action && (strcmp (action, "remove") == 0))
 			delay_framerate_switch (true, 0, modalias);
 
-	} else if (uevent_filter_matched (&g_filter_hdmi)) {
+	} else if (uevent_filter_matched (&g_filter_hdmi) && g_switch_hdmi) {
 		/* hdmi plugged on or off */
 		trace (1, "HDMI state changed, will handle in %d ms\n",
-			DEFAULT_HDMI_DELAY);
-		mstime_arm (&g_ost_hdmi, DEFAULT_HDMI_DELAY);
+			g_switch_hdmi);
+		mstime_arm (&g_ost_hdmi, g_switch_hdmi);
 
 	} else
 		trace (2, "\tUnrecognized uevent\n");
@@ -1175,6 +1176,7 @@ int afrd_init ()
 	g_switch_timeout = cfg_get_int ("switch.timeout", DEFAULT_SWITCH_TIMEOUT);
 	g_switch_blackout = cfg_get_int ("switch.blackout", DEFAULT_SWITCH_BLACKOUT);
 	g_switch_ignore = cfg_get_int ("switch.ignore", DEFAULT_SWITCH_IGNORE);
+	g_switch_hdmi = cfg_get_int ("switch.hdmi", DEFAULT_SWITCH_HDMI);
 
 	trace (1, "\tswitch delays: on %d, off %d, retry %d ms\n",
 		g_switch_delay_on, g_switch_delay_off, g_switch_delay_retry);

@@ -1,3 +1,11 @@
+0.3.1
+
+    Added the switch.hdmi option that allows to adjust the handling
+    of HDMI hotplug events, or disable it altogether.
+
+    Fixed a bug that would cause application notification sometimes
+    to display the wrong current refresh rate 
+
 0.3.0 Sun Apr 7 12:54:16 MSK 2019
 
     Now daemon checks if another daemon is already running and won't

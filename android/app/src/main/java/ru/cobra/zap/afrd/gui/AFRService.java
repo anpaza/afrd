@@ -35,13 +35,6 @@ public class AFRService extends Service
     private boolean mFirstRun = true;
 
     @Override
-
-    public int onStartCommand (Intent intent, int flags, int startId)
-    {
-        return super.onStartCommand (intent, flags, startId);
-    }
-
-    @Override
     public void onCreate ()
     {
         super.onCreate ();
@@ -129,12 +122,11 @@ public class AFRService extends Service
             if (mStatus.mEnabled)
                 nm |= 2;
 
-            nm |= (mStatus.mCurrentHz & 0xff) << 24;
-            nm |= (mStatus.mOriginalHz & 0xff) << 16;
+            nm ^= (mStatus.mCurrentHz << 8) ^ (mStatus.mOriginalHz << 8);
         }
 
         // If nothing changed, don't update the notification
-        if (mNotificationMask == nm)
+        if ((mNotificationMask == nm) && !changed)
             return;
 
         mNotificationMask = nm;

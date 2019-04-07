@@ -155,4 +155,8 @@
         milliseconds from previous OFF switch (helps to ignore video rewinding)
     </string>
     <string name="notif_notrunning">Daemon is not running</string>
+    <string name="prefsum_switch_hdmi">The delay before reloading display capabilities after a HDMI
+        hotplug event. Set to 0 to disable
+    </string>
+    <string name="prefs_switch_hdmi">Delay HDMI capabilities reloading by</string>
 </resources>
