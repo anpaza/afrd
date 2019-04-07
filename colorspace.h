@@ -1,3 +1,10 @@
+/*
+ * Automatic Framerate Daemon for AMLogic S905/S912-based boxes.
+ * Copyright (C) 2017-2019 Andrey Zabolotnyi <zapparello@ya.ru>
+ *
+ * For copying conditions, see file COPYING.txt.
+ */
+
 #ifndef __COLORSPACE_H__
 #define __COLORSPACE_H__
 

@@ -1,9 +1,10 @@
 /*
- * Millisecond timers
- * Copyright (c) 2017 Andrew Zabolotny
+ * Automatic Framerate Daemon for AMLogic S905/S912-based boxes.
+ * Copyright (C) 2017-2019 Andrey Zabolotnyi <zapparello@ya.ru>
  *
- * This code can be freely redistributed under the terms of
- * GNU Less General Public License version 3 or later.
+ * For copying conditions, see file COPYING.txt.
+ *
+ * Millisecond timers
  */
 
 #include "mstime.h"

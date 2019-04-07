@@ -1,4 +1,11 @@
-// nano ZIP-compatible CRC32 implementation
+/*
+ * Automatic Framerate Daemon for AMLogic S905/S912-based boxes.
+ * Copyright (C) 2017-2019 Andrey Zabolotnyi <zapparello@ya.ru>
+ *
+ * For copying conditions, see file COPYING.txt.
+ *
+ * nano ZIP-compatible CRC32 implementation
+ */
 
 #ifndef __CRC32_H__
 #define __CRC32_H__

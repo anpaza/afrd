@@ -1,4 +1,11 @@
-// useful functions for handling strings
+/*
+ * Automatic Framerate Daemon for AMLogic S905/S912-based boxes.
+ * Copyright (C) 2017-2019 Andrey Zabolotnyi <zapparello@ya.ru>
+ *
+ * For copying conditions, see file COPYING.txt.
+ *
+ * useful functions for handling strings
+ */
 
 #include "afrd.h"
 
