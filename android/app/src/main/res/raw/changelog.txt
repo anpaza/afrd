@@ -1,4 +1,4 @@
-0.3.0 Thu Apr 4 08:56:06 MSK 2019
+0.3.0 Sun Apr 7 12:54:16 MSK 2019
 
     Now daemon checks if another daemon is already running and won't
     run a second copy.
