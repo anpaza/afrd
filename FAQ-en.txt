@@ -52,6 +52,7 @@
 ! Open "Advanced settings" -> "Blacklisted refresh rates" and add the
 ! refresh rate of 30 (and, possibly, 29.97) Hz to the list.
 
+? At start of video display turns off even if framerate does not change.
 ? Why after video start the screen goes to black for some time, even if
 ? video framerate is not different from display refresh rate?
 
@@ -69,8 +70,7 @@
 
 ! If you wish, you can turn off this feature in preferences.
 
-? Why display doesn't turn off when I start one video immediately after
-? another?
+? Why display doesn't turn off when I start one video immediately after another?
 
 ! Preliminary switch to black takes action only if there's no active video.
 ! If video was already started, AFRd will avoid turning screen to black
@@ -83,6 +83,7 @@
 ! If you want display to turn off after the start of video, wait first
 ! for the original refresh rate to restore.
 
+? What is the meaning of "Fractional rate usage policy" option?
 ? What does the option that allows to choose between "fractional" and
 ? "integer" refresh rates?
 

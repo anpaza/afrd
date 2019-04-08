@@ -1,5 +1,8 @@
 0.3.1
 
+    Changed copying conditions (license) from 'none' to GPL-3.
+    Added full license text to application (on the 'About' page).
+
     Added the switch.hdmi option that allows to adjust the handling
     of HDMI hotplug events, or disable it altogether.
 

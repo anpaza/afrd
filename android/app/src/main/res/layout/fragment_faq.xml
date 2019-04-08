@@ -17,9 +17,13 @@
     <ListView android:id="@+id/qlist" android:layout_width="match_parent"
               android:layout_height="0dp" android:layout_weight="3"/>
     <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
-                android:layout_weight="1" android:background="@color/colorLogBackground">
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:background="@drawable/viewback">
         <LinearLayout android:id="@+id/answer" android:layout_width="match_parent"
-                      android:layout_height="wrap_content" android:layout_weight="1"
+                      android:layout_height="wrap_content"
                       android:animateLayoutChanges="true" android:orientation="vertical"/>
     </ScrollView>
 </LinearLayout>

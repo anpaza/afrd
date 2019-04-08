@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="colorMenuBackground">#2B332B</color>
-    <color name="colorLogBackground">#1D1D1C</color>
     <color name="colorStatusRowAlt">#393533</color>
     <color name="colorStatusRow">#303030</color>
     <color name="colorToolbar">#3F3F3F</color>
+    <color name="colorViewBackUnsel">#1D1D1C</color>
+    <color name="colorViewBackSel">#1E221D</color>
 </resources>

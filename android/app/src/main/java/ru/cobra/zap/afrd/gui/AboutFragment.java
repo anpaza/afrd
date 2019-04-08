@@ -13,6 +13,7 @@ import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -27,6 +28,10 @@ public class AboutFragment extends Fragment
     private int mAboutsIndex;
     private boolean mAboutsShow;
     private Handler mTimer = new Handler ();
+    private TextView mLicenseText;
+    private LinearLayout mAboutBottom;
+    private Button mShowAll;
+    private boolean mLicenseDisplayed = false;
 
     public static AboutFragment create ()
     {
@@ -57,10 +62,49 @@ public class AboutFragment extends Fragment
         TextView whatsnew = root.findViewById (R.id.whatsnew);
         whatsnew.setText (readFileJoinLines (R.raw.changelog));
 
+        mLicenseText = root.findViewById (R.id.license);
+        mAboutBottom = root.findViewById (R.id.about_bottom);
+
+        mShowAll = root.findViewById (R.id.butLicense);
+        mShowAll.setOnClickListener (new View.OnClickListener ()
+        {
+            @Override
+            public void onClick (View v)
+            {
+                toggleLicense ();
+            }
+        });
+
+        mLicenseText.setOnClickListener (new View.OnClickListener ()
+        {
+            @Override
+            public void onClick (View v)
+            {
+                toggleLicense ();
+            }
+        });
+
         return root;
     }
 
-    private String readFileJoinLines (int resid)
+    private void toggleLicense ()
+    {
+        mLicenseDisplayed = !mLicenseDisplayed;
+        if (mLicenseDisplayed)
+        {
+            mLicenseText.setText (readFile (R.raw.copying));
+            mShowAll.setText (R.string.about_hidelic);
+            mAboutBottom.setVisibility (View.GONE);
+        }
+        else
+        {
+            mLicenseText.setText (getString (R.string.about_gpl3));
+            mShowAll.setText (R.string.about_showlic);
+            mAboutBottom.setVisibility (View.VISIBLE);
+        }
+    }
+
+    private String readFile (int resid)
     {
         try
         {
@@ -69,15 +113,20 @@ public class AboutFragment extends Fragment
             if (is.read (buff) < 0)
                 return "";
 
-            String ret = new String (buff, StandardCharsets.UTF_8);
-            // Remove newlines not followed by another newline
-            return ret.replaceAll (" *([^\n])\n +", "$1 ");
+            return new String (buff, StandardCharsets.UTF_8);
         }
         catch (IOException ignored)
         {
         }
 
         return "";
+    }
+
+    private String readFileJoinLines (int resid)
+    {
+        String ret = readFile (resid);
+        // Remove newlines not followed by another newline
+        return ret.replaceAll (" *([^\n])\n +", "$1 ");
     }
 
     private void animate ()

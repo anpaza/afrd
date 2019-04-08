@@ -93,7 +93,7 @@ public class MainActivity extends Activity
         addFragment (StatusFragment.create (), "status");
     }
 
-    private boolean createMainMenu ()
+    private void createMainMenu ()
     {
         List<Map<String, String>> data = new ArrayList<> ();
         Map<String, String> menuent;
@@ -160,7 +160,6 @@ public class MainActivity extends Activity
             }
         });
 
-        return true;
     }
 
     @SuppressWarnings( "deprecation" )
@@ -241,7 +240,7 @@ public class MainActivity extends Activity
         return conf.condSave (mControl.mIni);
     }
 
-    private boolean prepareDaemon ()
+    private void prepareDaemon ()
     {
         SharedPreferences prefs = getSharedPreferences ("requisites", 0);
         boolean rewrite = true;
@@ -256,20 +255,19 @@ public class MainActivity extends Activity
             }
 
         if (!rewrite)
-            return true;
+            return;
 
         String res = mControl.extractDaemon (this);
         if (!res.isEmpty ())
         {
             showMessage (getString (R.string.msg_title_critical_error), res, null);
-            return false;
+            return;
         }
 
         prefs.edit ().putString ("afrd_ver", mPackageInfo.versionName).apply ();
-        return true;
     }
 
-    private boolean prepareSuperuser ()
+    private void prepareSuperuser ()
     {
         AsyncTask.execute (new Runnable ()
         {
@@ -285,7 +283,6 @@ public class MainActivity extends Activity
                 startService (new Intent (getApplicationContext (), AFRService.class));
             }
         });
-        return true;
     }
 
     private void showMessage (String title, String msg, DialogInterface.OnClickListener onOk)

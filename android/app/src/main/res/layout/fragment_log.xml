@@ -18,10 +18,11 @@
 
     <ScrollView android:layout_width="match_parent" android:layout_height="match_parent">
         <TextView android:id="@+id/textLog" android:layout_width="match_parent"
-                  android:layout_height="match_parent"
-                  android:background="@color/colorLogBackground" android:fontFamily="monospace"
+                  android:layout_height="wrap_content" android:background="@drawable/viewback"
+                  android:clickable="true" android:focusable="true" android:focusableInTouchMode="true"
                   android:gravity="bottom" android:paddingStart="16dp" android:paddingEnd="16dp"
-                  android:scrollbars="vertical" android:textSize="18sp"/>
+                  android:scrollbars="vertical" android:textSize="18sp"
+                  android:typeface="monospace"/>
     </ScrollView>
 
 </LinearLayout>

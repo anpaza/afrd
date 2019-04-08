@@ -51,11 +51,11 @@
     <string name="prefs_cs_select">Color space selection rules</string>
     <string name="prefsum_cs_select">The rules to select color space depending on video mode name
     </string>
-    <string name="prefs_switch_delay_on">ON switch delay</string>
+    <string name="prefs_switch_delay_on">PLAY switch delay</string>
     <string name="prefsum_switch_delay_on">The delay in ms to wait after movie starts before
         detecting movie framerate
     </string>
-    <string name="prefs_switch_delay_off">OFF switch delay</string>
+    <string name="prefs_switch_delay_off">STOP switch delay</string>
     <string name="prefsum_switch_delay_off">The delay in ms to wait before restoring original
         refresh rate after movie ends. Set to 0 to tell afrd not to restore original refresh
         rate.
@@ -134,6 +134,15 @@
     <string name="about_testing">Testing</string>
     <string name="about_testing_support">Testing &amp; Support</string>
     <string name="about_supporter">Supporter</string>
+    <string name="about_license">Copying conditions</string>
+    <string name="about_gpl3">
+        \u0020\u0020This program is free software: you can redistribute it and/or modify it under
+        the terms of the GNU General Public License as published by the Free Software Foundation,
+        either version 3 of the License, or (at your option) any later version.\n\n
+        \u0020\u0020This program is distributed in the hope that it will be useful, but WITHOUT
+        ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+        PARTICULAR PURPOSE.
+    </string>
     <string name="menu_desc_about">Authors, version history</string>
     <string name="prefs_toast">Toast refresh rate on switch</string>
     <string name="prefsum_toast">Show a small pop-up notification after display refresh rate changes
@@ -150,13 +159,15 @@
     <string name="prefsum_frhint_vdec_blacklist">A list of video decoders for which afrd will not
         use FRAME_RATE_HINT events. It will use other sources, which works a lot better
     </string>
-    <string name="prefs_switch_ignore">Ignore OFF/ON intervals shorter than</string>
-    <string name="prefsum_switch_ignore">Ignore ON switches that happen in less than this number of
-        milliseconds from previous OFF switch (helps to ignore video rewinding)
+    <string name="prefs_switch_ignore">Minimum STOP/PLAY interval to react on</string>
+    <string name="prefsum_switch_ignore">Ignore PLAY events happening in less than this number of
+        milliseconds from previous STOP switch (helps to ignore video rewinding)
     </string>
     <string name="notif_notrunning">Daemon is not running</string>
     <string name="prefsum_switch_hdmi">The delay before reloading display capabilities after a HDMI
         hotplug event. Set to 0 to disable
     </string>
-    <string name="prefs_switch_hdmi">Delay HDMI capabilities reloading by</string>
+    <string name="prefs_switch_hdmi">HDMI capabilities reloading delay</string>
+    <string name="about_showlic">See full text</string>
+    <string name="about_hidelic">Hide full text</string>
 </resources>
