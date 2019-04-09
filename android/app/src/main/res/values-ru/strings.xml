@@ -85,7 +85,7 @@
     <string name="l_afrd_bdate">Дата сборки</string>
     <string name="l_yes">Да</string>
     <string name="l_no">Нет</string>
-    <string name="mode_use_fract_auto">Авто (использовать наиболее подходящий)</string>
+    <string name="mode_use_fract_auto">Авто (наиболее подходящую)</string>
     <string name="mode_use_fract_use">Предпочитать дробные частоты</string>
     <string name="mode_use_fract_int">Предпочитать целые частоты</string>
     <string name="settings_advanced">Настройки для опытных пользователей</string>

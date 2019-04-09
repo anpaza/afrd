@@ -9,6 +9,11 @@
     Fixed a bug that would cause application notification sometimes
     to display the wrong current refresh rate 
 
+    Added display of current value in preferences editor.
+
+    Now supporting switching colorspaces on kernel 3.14.29
+    (Android 6 & 7)!
+
 0.3.0 Sun Apr 7 12:54:16 MSK 2019
 
     Now daemon checks if another daemon is already running and won't

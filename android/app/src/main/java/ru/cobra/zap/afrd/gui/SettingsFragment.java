@@ -10,7 +10,12 @@ package ru.cobra.zap.afrd.gui;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.EditTextPreference;
+import android.preference.ListPreference;
+import android.preference.MultiSelectListPreference;
+import android.preference.Preference;
 import android.preference.PreferenceFragment;
+import android.preference.PreferenceGroup;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -64,10 +69,25 @@ public class SettingsFragment extends PreferenceFragment
                 }
             });
 
+        return root;
+    }
+
+    @Override
+    public void onResume ()
+    {
+        super.onResume ();
+
         getPreferenceManager ().getSharedPreferences ()
             .registerOnSharedPreferenceChangeListener (this);
+    }
 
-        return root;
+    @Override
+    public void onPause ()
+    {
+        super.onPause ();
+
+        getPreferenceScreen ().getSharedPreferences ()
+            .unregisterOnSharedPreferenceChangeListener (this);
     }
 
     @Override

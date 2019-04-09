@@ -13,63 +13,63 @@
     <SwitchPreference android:defaultValue="0" android:key="mode_prefer_exact"
                       android:summary="@string/prefsum_mode_prefer_exact"
                       android:title="@string/prefs_mode_prefer_exact"/>
-    <ListPreference android:defaultValue="0" android:entries="@array/mode_use_fract"
+    <ru.cobra.zap.xprefs.XListPreference android:defaultValue="0" android:entries="@array/mode_use_fract"
                     android:entryValues="@array/mode_use_fract_value" android:key="mode_use_fract"
                     android:summary="@string/prefsum_mode_use_fract"
                     android:title="@string/prefs_mode_use_fract"/>
     <PreferenceScreen android:fragment="ru.cobra.zap.afrd.gui.SettingsFragment"
                       android:key="timings" android:title="@string/prefs_group_timings">
-        <EditTextPreference android:defaultValue="300" android:key="switch_delay_on"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:defaultValue="300" android:key="switch_delay_on"
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
                             android:singleLine="true" android:summary="@string/prefsum_switch_delay_on"
                             android:title="@string/prefs_switch_delay_on"/>
-        <EditTextPreference android:defaultValue="10000" android:key="switch_delay_off"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:defaultValue="10000" android:key="switch_delay_off"
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
                             android:singleLine="true" android:summary="@string/prefsum_switch_delay_off"
                             android:title="@string/prefs_switch_delay_off"/>
-        <EditTextPreference android:defaultValue="100" android:key="switch_delay_retry"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:defaultValue="100" android:key="switch_delay_retry"
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
                             android:singleLine="true" android:summary="@string/prefsum_switch_delay_retry"
                             android:title="@string/prefs_switch_delay_retry"/>
-        <EditTextPreference android:defaultValue="3000" android:key="switch_timeout"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:defaultValue="3000" android:key="switch_timeout"
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
                             android:singleLine="true" android:summary="@string/prefsum_switch_timeout"
                             android:title="@string/prefs_switch_timeout"/>
-        <EditTextPreference android:defaultValue="150" android:key="switch_blackout"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:defaultValue="150" android:key="switch_blackout"
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
                             android:singleLine="true" android:summary="@string/prefsum_switch_blackout"
                             android:title="@string/prefs_switch_blackout"/>
-        <EditTextPreference android:defaultValue="200" android:key="switch_ignore"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:defaultValue="200" android:key="switch_ignore"
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
                             android:singleLine="true" android:summary="@string/prefsum_switch_ignore"
                             android:title="@string/prefs_switch_ignore"/>
-        <EditTextPreference android:defaultValue="2000" android:key="switch_hdmi"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:defaultValue="2000" android:key="switch_hdmi"
                             android:maxLength="5" android:numeric="integer" android:selectAllOnFocus="true"
                             android:singleLine="true" android:summary="@string/prefsum_switch_hdmi"
                             android:title="@string/prefs_switch_hdmi"/>
     </PreferenceScreen>
     <PreferenceScreen android:fragment="ru.cobra.zap.afrd.gui.SettingsFragment"
                       android:key="advanced" android:title="@string/settings_advanced">
-        <EditTextPreference android:key="mode_blacklist_rates" android:selectAllOnFocus="false"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:key="mode_blacklist_rates" android:selectAllOnFocus="false"
                             android:singleLine="true"
                             android:summary="@string/prefsum_mode_blacklist_rates"
                             android:title="@string/prefs_mode_blacklist_rates"/>
-        <EditTextPreference android:key="mode_extra" android:selectAllOnFocus="false"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:key="mode_extra" android:selectAllOnFocus="false"
                             android:singleLine="true" android:summary="@string/prefsum_mode_extra"
                             android:title="@string/prefs_mode_extra"/>
-        <EditTextPreference android:defaultValue="2160p[4-9].*=420 .*=444" android:key="cs_select"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:defaultValue="2160p[4-9].*=420 .*=444" android:key="cs_select"
                             android:selectAllOnFocus="false" android:singleLine="true"
                             android:summary="@string/prefsum_cs_select"
                             android:title="@string/prefs_cs_select"/>
-        <EditTextPreference android:defaultValue="/data/local/afrd.log" android:key="log_file"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:defaultValue="/data/local/afrd.log" android:key="log_file"
                             android:selectAllOnFocus="false" android:singleLine="true"
                             android:summary="@string/prefsum_log_file"
                             android:title="@string/prefs_log_file"/>
-        <EditTextPreference android:key="vdec_blacklist"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:key="vdec_blacklist"
                             android:selectAllOnFocus="false" android:singleLine="true"
                             android:summary="@string/prefsum_vdec_blacklist"
                             android:title="@string/prefs_vdec_blacklist"/>
-        <EditTextPreference android:key="frhint_vdec_blacklist"
+        <ru.cobra.zap.xprefs.XEditTextPreference android:key="frhint_vdec_blacklist"
                             android:selectAllOnFocus="false" android:singleLine="true"
                             android:summary="@string/prefsum_frhint_vdec_blacklist"
                             android:title="@string/prefs_frhint_vdec_blacklist"/>
