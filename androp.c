@@ -10,7 +10,7 @@
 
 // every prop is stored as "name\0value\0"
 // to have a static storage to return a pointer to
-static char **stor;
+static char **stor = NULL;
 // number of stored props
 static int stor_size = 0;
 
@@ -25,6 +25,7 @@ void androp_fini ()
 			free (stor [i]);
 		free (stor);
 		stor_size = 0;
+		stor = NULL;
 	}
 }
 

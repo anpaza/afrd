@@ -142,7 +142,7 @@ void display_mode_get_current ()
 {
 	// parse the current video mode
 	char *mode = sysfs_get_str (g_mode_path, NULL);
-	if (!strcmp (mode, "null")) {
+	if (!mode || !strcmp (mode, "null")) {
 		trace (1, "Current video mode is null!\n");
 		return;
 	}

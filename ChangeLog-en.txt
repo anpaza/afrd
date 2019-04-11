@@ -19,7 +19,8 @@
     startup for many users.
 
     Fixed framerate not switching in some circumstances (for example,
-    HDVideBox + MX Player).
+    HDVideBox + MX Player) because of the added in previous version
+    option switch.ignore.
 
 0.3.0 Sun Apr 7 12:54:16 MSK 2019
 

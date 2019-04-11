@@ -12,6 +12,7 @@ import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,6 +22,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 import eu.chainfire.libsuperuser.Shell;
 import ru.cobra.zap.afrd.Control;
@@ -215,6 +217,7 @@ public class LogFragment extends Fragment
         close ();
 
         String[] cmd = new String [] { "rm -f '" + mLog.getPath ().replace ("'", "'\"'\"'") + "'" };
+        Log.d ("afrd", "Run: " + Arrays.toString (cmd));
         Shell.run ("su", cmd, null, false);
 
         Control ctl = new Control (getActivity ());

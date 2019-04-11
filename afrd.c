@@ -897,10 +897,11 @@ static void handle_uevent (char *msg, ssize_t size)
 		mstime_arm (&g_ost_hdmi, g_switch_hdmi);
 
 	} else if (uevent_filter_matched (&g_filter_hdcp)) {
-		/* HDCP turned HDMI off, turn it back on */
-		trace (1, "HDCP disabled HDMI, re-enable HDCP 1.4\n");
-		sysfs_set_str (g_hdmi_dev, "hdcp_mode", "1");
-
+		if (g_state.orig_mode.name [0] != 0) {
+			/* HDCP turned HDMI off, turn it back on */
+			trace (1, "HDCP disabled HDMI, re-enable HDCP 1.4\n");
+			sysfs_set_str (g_hdmi_dev, "hdcp_mode", "1");
+		}
 
 	} else
 		trace (2, "\tUnrecognized uevent\n");
