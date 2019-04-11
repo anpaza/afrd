@@ -34,7 +34,7 @@
 
 #include "afrd.h"
 
-const char *g_version = "0.3.0";
+const char *g_version = "0.3.1";
 const char *g_ver_sfx = "";
 const char *g_bdate = BDATE;
 const char *g_config = "/etc/afrd.ini";
@@ -215,6 +215,7 @@ static int kill_daemon ()
 
 static void switch_namespace (int pid)
 {
+#ifdef ANDROID
 #if __ANDROID_API__ >= 21
 	char tmp [64];
 	int h;
@@ -234,6 +235,7 @@ static void switch_namespace (int pid)
 	}
 #else
 #error "afrd is not designed to run on Android API level < 21"
+#endif
 #endif
 }
 

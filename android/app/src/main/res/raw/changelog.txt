@@ -1,3 +1,26 @@
+0.3.1
+
+    Changed copying conditions (license) from 'none' to GPL-3.
+    Added full license text to application (on the 'About' page).
+
+    Added the switch.hdmi option that allows to adjust the handling
+    of HDMI hotplug events, or disable it altogether.
+
+    Fixed a bug that would cause application notification sometimes
+    to display the wrong current refresh rate 
+
+    Added display of current value in preferences editor.
+
+    Now supporting switching colorspaces on kernel 3.14.29
+    (Android 6 & 7)!
+
+    Fixed black screen on refresh rate change on boxes with built-in
+    HDCP 1.4 keys. This also was the cause of "black screen" at system
+    startup for many users.
+
+    Fixed framerate not switching in some circumstances (for example,
+    HDVideBox + MX Player).
+
 0.3.0 Sun Apr 7 12:54:16 MSK 2019
 
     Now daemon checks if another daemon is already running and won't

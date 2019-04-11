@@ -1,7 +1,9 @@
 #!/bin/sh
 
-export NDK=/usr/local/app/Android/SDK/ndk-bundle
-$NDK/ndk-build $DEBUG $* || exit $?
+if test -z "$NDK" ; then
+	export NDK=/usr/local/app/Android/SDK/ndk-bundle
+fi
+$NDK/ndk-build $* || exit $?
 
 test -n "$*" && exit 0
 

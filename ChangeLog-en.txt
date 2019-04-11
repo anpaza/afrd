@@ -14,6 +14,13 @@
     Now supporting switching colorspaces on kernel 3.14.29
     (Android 6 & 7)!
 
+    Fixed black screen on refresh rate change on boxes with built-in
+    HDCP 1.4 keys. This also was the cause of "black screen" at system
+    startup for many users.
+
+    Fixed framerate not switching in some circumstances (for example,
+    HDVideBox + MX Player).
+
 0.3.0 Sun Apr 7 12:54:16 MSK 2019
 
     Now daemon checks if another daemon is already running and won't

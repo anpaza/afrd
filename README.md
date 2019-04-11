@@ -140,6 +140,25 @@ The following parameters are recognized by AFRD:
     disabled to minimize flicker. Don't set it too low as in some
     circumstances screen may be blackened when it shouldn't be.
 
+* *switch.ignore*
+    If time interval between a STOP/PLAY operation is less than given
+    amount of milliseconds, afrd will not re-evaluate movie fps. This
+    is useful to avoid suddent refresh rate switches due to wrong fps
+    evaluation during movie rewind operations.
+
+* *switch.hdmi*
+    Number of milliseconds to delay HDMI hot-plug event handling.
+    When HDMI is plugged out, afrd will clear the list of supported
+    video modes, and when it is plugged in, afrd will query the list
+    of supported modes (which is retrieved from TV EDID data), but it
+    has to wait a little so that things settle down (till kernel driver
+    does its job).
+
+    Some strange TVs will simulate a HDMI off/on event pair on every
+    refresh rate switch, this can be seen in afrd log. In this case
+    this parameter should be either 0 (which means to ignore HDMI
+    hotplug events), or larger than the "HDMI off" period.
+
 * *mode.path*
     Points to sysfs file used to switch current video mode.
     This is usually /sys/class/display/mode.
@@ -203,6 +222,12 @@ The following parameters are recognized by AFRD:
     Regular expressions cannot contain space characters, which are used to
     delimit attribute filters from each other. If you need a space, use the
     [[:space:]] regular expression.
+
+* *frhint.vdec.blacklist*
+    A list of video decoders to ignore FRAME_RATE_HINT events from. For example,
+    the amvdec_h265 codec will always report 26 fps on every video in a
+    FRAME_RATE_HINT event. By ignoring this FRAME_RATE_HINT event you give
+    a chance to afrd to use other sources to determine the correct frame rate.
 
 
 AFRd API

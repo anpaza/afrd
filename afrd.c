@@ -8,6 +8,7 @@
 #include "afrd.h"
 #include "uevent_filter.h"
 #include "colorspace.h"
+#include "androp.h"
 
 #define __USE_GNU
 #include <unistd.h>
@@ -15,6 +16,7 @@
 #include <linux/netlink.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 
 #ifndef SOCK_CLOEXEC
 #  define SOCK_CLOEXEC O_CLOEXEC
@@ -48,6 +50,7 @@ static bool g_enable;                 // enabled in config file
 static uevent_filter_t g_filter_frhint;
 static uevent_filter_t g_filter_vdec;
 static uevent_filter_t g_filter_hdmi;
+static uevent_filter_t g_filter_hdcp;
 
 static strlist_t g_vdec_blacklist;
 static strlist_t g_frhint_vdec_blacklist;
@@ -134,6 +137,8 @@ static struct
 {
 	// true to restore original display mode, false to set from current movie
 	bool restore;
+	// true if a mode switch is pending
+	bool delayed_switch;
 	// desired refresh rate in hz (fixed-point 24.8) if known, or 0 if not known
 	int hz;
 	// the initial video mode (this mode is set when restore==true)
@@ -574,6 +579,8 @@ static void framerate_restore (bool only_if_black)
 
 static void framerate_switch (bool force)
 {
+	g_state.delayed_switch = false;
+
 	if (g_state.restore) {
 		if (!g_state.orig_mode.name [0])
 			trace (1, "No saved display mode to restore\n");
@@ -723,7 +730,8 @@ static void delay_framerate_switch (bool restore, int hz, const char *modalias)
 			mstime_arm (&g_ost_off, g_switch_ignore);
 		else if (mstime_enabled (&g_ost_off) &&
 		         !mstime_expired (&g_ost_off) &&
-		         !g_blackened) {
+		         !g_blackened &&
+		         !g_state.delayed_switch) {
 			trace (1, "Ignore framerate switch because restore event was %d ms ago\n",
 				g_switch_ignore - mstime_left (&g_ost_off));
 			g_state.restore = false;
@@ -791,6 +799,7 @@ static void delay_framerate_switch (bool restore, int hz, const char *modalias)
 	if (restore)
 		mstime_disable (&g_state.hz_ost);
 	else {
+		g_state.delayed_switch = true;
 		mstime_arm (&g_state.hz_ost, g_switch_timeout);
 		// when movie starts, disable screen until we switch to actual frame rate
 		if (g_enable && g_switch_blackout &&
@@ -823,6 +832,7 @@ static void handle_uevent (char *msg, ssize_t size)
 	uevent_filter_reset (&g_filter_frhint);
 	uevent_filter_reset (&g_filter_vdec);
 	uevent_filter_reset (&g_filter_hdmi);
+	uevent_filter_reset (&g_filter_hdcp);
 
 	for (const char *end = msg + size; msg < end; msg += strlen (msg) + 1) {
 		if (msg == msg_orig) {
@@ -851,6 +861,7 @@ static void handle_uevent (char *msg, ssize_t size)
 		uevent_filter_match (&g_filter_frhint, msg, val);
 		uevent_filter_match (&g_filter_vdec, msg, val);
 		uevent_filter_match (&g_filter_hdmi, msg, val);
+		uevent_filter_match (&g_filter_hdcp, msg, val);
 		msg = val;
 	}
 
@@ -884,6 +895,12 @@ static void handle_uevent (char *msg, ssize_t size)
 		trace (1, "HDMI state changed, will handle in %d ms\n",
 			g_switch_hdmi);
 		mstime_arm (&g_ost_hdmi, g_switch_hdmi);
+
+	} else if (uevent_filter_matched (&g_filter_hdcp)) {
+		/* HDCP turned HDMI off, turn it back on */
+		trace (1, "HDCP disabled HDMI, re-enable HDCP 1.4\n");
+		sysfs_set_str (g_hdmi_dev, "hdcp_mode", "1");
+
 
 	} else
 		trace (2, "\tUnrecognized uevent\n");
@@ -1150,6 +1167,7 @@ int afrd_init ()
 		return -1;
 
 	shmem_init (false);
+	androp_init ();
 
 	int log_enable = (cfg_get_int ("log.enable", 1) != 0);
 	const char *log_file = cfg_get_str ("log.file", NULL);
@@ -1157,7 +1175,19 @@ int afrd_init ()
 		trace_log (log_file);
 
 	trace (1, "afrd v%s built at %s is initializing\n", g_version, g_bdate);
-	trace (1, "\tactive config file: %s\n", g_config);
+
+	struct utsname un;
+	if (uname (&un) != 0)
+		memset (&un, 0, sizeof (un));
+	trace (1, "\tlinux kernel %s\n", un.release);
+	trace (1, "\tandroid build %s\n", androp_get ("ro.build.description"));
+	trace (1, "\tmanufacturer %s board %s device %s model %s\n",
+		androp_get ("ro.product.manufacturer"),
+		androp_get ("ro.product.board"),
+		androp_get ("ro.product.device"),
+		androp_get ("ro.product.model"));
+
+	trace (1, "\tActive config file: %s\n", g_config);
 
 	g_enable = (cfg_get_int ("enable", 1) != 0);
 
@@ -1191,6 +1221,7 @@ int afrd_init ()
 	uevent_filter_load (&g_filter_frhint, "uevent.filter.frhint");
 	uevent_filter_load (&g_filter_vdec, "uevent.filter.vdec");
 	uevent_filter_load (&g_filter_hdmi, "uevent.filter.hdmi");
+	uevent_filter_load (&g_filter_hdcp, "uevent.filter.hdcp");
 
 	if (!uevent_open (16 * 1024)) {
 		trace (0, "failed to open uevent socket");
@@ -1233,5 +1264,6 @@ void afrd_fini ()
 	}
 
 	shmem_fini ();
+	androp_fini ();
 	trace_log (NULL);
 }
