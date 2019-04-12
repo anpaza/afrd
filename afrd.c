@@ -1246,6 +1246,7 @@ void afrd_fini ()
 	uevent_filter_fini (&g_filter_frhint);
 	uevent_filter_fini (&g_filter_vdec);
 	uevent_filter_fini (&g_filter_hdmi);
+	uevent_filter_fini (&g_filter_hdcp);
 	strlist_free (&g_vdec_blacklist);
 	g_mode_blacklist_rates_count = 0;
 

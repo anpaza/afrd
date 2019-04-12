@@ -1,20 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
               android:layout_height="match_parent" android:orientation="vertical"
               tools:context=".LogFragment">
 
     <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
                   android:background="@color/colorMenuBackground" android:orientation="horizontal">
-        <TextView android:id="@android:id/title" android:layout_width="0dp"
+        <TextView android:id="@+id/title" android:layout_width="0dp"
                   android:layout_height="match_parent" android:layout_weight="1"
                   android:gravity="start|center_vertical" android:paddingStart="16dp"
-                  android:paddingEnd="16dp" android:textSize="18sp"/>
+                  android:paddingEnd="16dp" android:textSize="18sp" android:text="@string/settings_title" />
         <ImageButton android:id="@+id/buttonPrefsReset" android:layout_width="40dp"
                      android:layout_height="match_parent" android:layout_marginStart="16dp"
                      android:layout_marginEnd="16dp" android:layout_weight="0"
-                     android:contentDescription="@string/prefs_reset" android:src="@drawable/ic_reset"/>
+                     android:contentDescription="@string/prefs_reset"
+                     android:src="@drawable/ic_reset"/>
     </LinearLayout>
+
     <ListView android:id="@android:id/list" android:layout_width="match_parent"
               android:layout_height="match_parent"/>
 </LinearLayout>

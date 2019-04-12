@@ -17,7 +17,7 @@ extern const char *androp_get (const char *key);
 
 #define androp_init()
 #define androp_fini()
-#define androp_get(key) NULL
+#define androp_get(key) ""
 
 #endif
 

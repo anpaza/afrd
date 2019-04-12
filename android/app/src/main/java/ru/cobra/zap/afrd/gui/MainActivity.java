@@ -7,6 +7,7 @@
 
 package ru.cobra.zap.afrd.gui;
 
+import android.app.ActionBar;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Fragment;
@@ -63,6 +64,9 @@ public class MainActivity extends Activity
         super.onCreate (savedInstanceState);
 
         limitDpi ();
+        ActionBar ab = getActionBar ();
+        if (ab != null)
+            ab.hide ();
 
         setContentView (R.layout.activity_main);
 

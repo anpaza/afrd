@@ -168,4 +168,5 @@
     </string>
     <string name="about_showlic">Полный текст</string>
     <string name="about_hidelic">Спрятать текст</string>
+    <string name="settings_title">Настройки</string>
 </resources>
