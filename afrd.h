@@ -38,6 +38,7 @@
 #define DEFAULT_SWITCH_BLACKOUT		150
 #define DEFAULT_SWITCH_IGNORE		200
 #define DEFAULT_SWITCH_HDMI		2000
+#define DEFAULT_SWITCH_HDCP		2000
 #define DEFAULT_MODE_PREFER_EXACT	0
 #define DEFAULT_MODE_USE_FRACT		0
 
@@ -116,6 +117,7 @@ extern void trace_sync ();
 extern int afrd_init ();
 extern int afrd_run ();
 extern void afrd_fini ();
+extern void afrd_emerg ();
 
 // read the list of all supported display modes and current display mode
 extern int display_modes_init ();
@@ -215,6 +217,8 @@ extern afrd_shmem_t g_afrd_stats;
 extern bool shmem_init (bool read);
 // finalize the shared memory object
 extern void shmem_fini ();
+// emergency close
+extern void shmem_emerg ();
 // update shared memory stats from g_afrd_stats
 extern void shmem_update ();
 // update g_afrd_stats from shared memory (in read mode)

@@ -34,8 +34,8 @@
 
 #include "afrd.h"
 
-const char *g_version = "0.3.1";
-const char *g_ver_sfx = "";
+const char *g_version = "0.3.2";
+const char *g_ver_sfx = "beta";
 const char *g_bdate = BDATE;
 const char *g_config = "/etc/afrd.ini";
 const char *g_pidfile =
@@ -112,8 +112,10 @@ void trace (int level, const char *format, ...)
 	va_list argp;
 	struct tm tm;
 	struct timeval tv;
+	bool write_logh = (g_logh >= 0) && (level <= 2);
+	bool write_stdout = !g_daemon && (level <= g_verbose);
 
-	if ((g_logh < 0) && (level > g_verbose))
+	if (!(write_logh || write_stdout))
 		return;
 
 	if (gettimeofday (&tv, NULL) < 0)
@@ -129,12 +131,26 @@ void trace (int level, const char *format, ...)
 	n += vsnprintf (buff + n, sizeof (buff) - n, format, argp);
 	va_end (argp);
 
-	write ((g_logh < 0) ? STDOUT_FILENO : g_logh, buff, n);
+	if (write_logh)
+		write (g_logh, buff, n);
+	if (write_stdout)
+		write (STDOUT_FILENO, buff, n);
 }
 
 static void signal_handler (int sig)
 {
 	g_shutdown = 1;
+}
+
+static void signal_emerg (int sig)
+{
+	// shit happened, just remove files and quit
+	if (g_daemon)
+		unlink (g_pidfile);
+	afrd_emerg ();
+
+	// restore original signal handler
+	signal (sig, SIG_DFL);
 }
 
 int load_config (const char *config)
@@ -377,10 +393,14 @@ int main (int argc, char *const *argv)
 		if ((ret = load_config (argv [optind++])) == 0)
 			break;
 
-	signal (SIGINT,  signal_handler);
+	signal (SIGHUP, SIG_IGN);
+	signal (SIGINT, signal_handler);
 	signal (SIGQUIT, signal_handler);
 	signal (SIGTERM, signal_handler);
-	signal (SIGHUP, SIG_IGN);
+
+	signal (SIGFPE, signal_emerg);
+	signal (SIGILL, signal_emerg);
+	signal (SIGSEGV, signal_emerg);
 
 	for (;;) {
 		if ((ret = afrd_init ()) < 0)

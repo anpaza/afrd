@@ -60,7 +60,7 @@ public class AboutFragment extends Fragment
         animate ();
 
         TextView whatsnew = root.findViewById (R.id.whatsnew);
-        whatsnew.setText (readFileJoinLines (R.raw.changelog));
+        whatsnew.setText (readWhatsnew (R.raw.changelog));
 
         mLicenseText = root.findViewById (R.id.license);
         mAboutBottom = root.findViewById (R.id.about_bottom);
@@ -92,7 +92,7 @@ public class AboutFragment extends Fragment
         mLicenseDisplayed = !mLicenseDisplayed;
         if (mLicenseDisplayed)
         {
-            mLicenseText.setText (readFile (R.raw.copying));
+            mLicenseText.setText (readLicense (R.raw.copying));
             mShowAll.setText (R.string.about_hidelic);
             mAboutBottom.setVisibility (View.GONE);
         }
@@ -122,11 +122,18 @@ public class AboutFragment extends Fragment
         return "";
     }
 
-    private String readFileJoinLines (int resid)
+    private String readWhatsnew (int resid)
     {
         String ret = readFile (resid);
         // Remove newlines not followed by another newline
         return ret.replaceAll (" *([^\n])\n +", "$1 ");
+    }
+
+    private String readLicense (int resid)
+    {
+        String ret = readFile (resid);
+        // Remove newlines not followed by a line starting with space
+        return ret.replaceAll ("(.+) *\n([^ \t\n])", "$1 $2");
     }
 
     private void animate ()

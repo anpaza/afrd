@@ -26,9 +26,9 @@ import ru.cobra.zap.afrd.gui.R;
 public class Control
 {
     private static final String AFRD_PID_FILE = "/dev/run/afrd.pid";
-    // detect AmLogic kernels
-    private static final String SYSFS_AMLOGIC = "/sys/class/vdec/vdec_status";
-    // this is present only on Android 8 & 9
+    // this attribute exists on Android 6 & 7
+    private static final String SYSFS_ANDROID67 = "/sys/class/switch/hdmi/state";
+    // this attribute exists on Android 8 & 9
     private static final String SYSFS_ANDROID89 = "/sys/class/switch/hdmi/cable.0/state";
 
     public File mIni;
@@ -43,7 +43,7 @@ public class Control
     public void restart ()
     {
         mAfrd.setExecutable (true);
-        String[] cmd = new String [] { mAfrd.getPath () + " -k -D " + mIni.getPath () };
+        String[] cmd = new String[] { mAfrd.getPath () + " -k -D " + mIni.getPath () };
         Log.d ("afrd", "Run: " + Arrays.toString (cmd));
         Shell.run ("su", cmd, null, false);
         // give status another chance
@@ -55,11 +55,11 @@ public class Control
         try
         {
             FileInputStream fis = new FileInputStream (AFRD_PID_FILE);
-            byte[] data = new byte [300];
+            byte[] data = new byte[300];
             int n = fis.read (data);
             fis.close ();
 
-            while ((n > 0) && ((data [n - 1] < (byte)'0') || (data [n - 1] > (byte)'9')))
+            while ((n > 0) && ((data[n - 1] < (byte) '0') || (data[n - 1] > (byte) '9')))
                 n--;
 
             if (n > 0)
@@ -85,16 +85,27 @@ public class Control
 
     public String extractConfig (Context ctx)
     {
-        int res_id;
+        String kver = System.getProperty ("os.version", "");
+        String hardware = jfun.getProperty ("ro.hardware");
+        String model = jfun.getProperty ("ro.product.model");
 
-        if (!new File (SYSFS_AMLOGIC).exists ())
+        assert kver != null;
+        assert hardware != null;
+        assert model != null;
+
+        int res_id;
+        if (!hardware.equalsIgnoreCase ("amlogic"))
             return ctx.getString (R.string.only_amlogic);
-        else if (new File (SYSFS_ANDROID89).exists ())
+        else if (model.equalsIgnoreCase ("NEO-U9-H") && kver.startsWith ("3.14.29"))
+            res_id = R.raw.afrd_minix7;
+        else if (kver.startsWith ("4.") && new File (SYSFS_ANDROID89).exists ())
             // Android 8 or 9
             res_id = R.raw.afrd_8;
-        else
+        else if (kver.startsWith ("3.") && new File (SYSFS_ANDROID67).exists ())
             // Android 6 or 7
             res_id = R.raw.afrd_7;
+        else
+            return ctx.getString (R.string.failed_detect_ostype, kver, hardware, model);
 
         if (!jfun.extractFile (ctx, res_id, mIni))
             return ctx.getString (R.string.failed_copy_raw, mIni.getPath ());
@@ -129,7 +140,7 @@ public class Control
                 switch (i)
                 {
                     case 0:
-                        String[] cmd = new String [] { mAfrd.getPath () + " -k", "rm -f " + mAfrd.getPath () };
+                        String[] cmd = new String[] { mAfrd.getPath () + " -k", "rm -f " + mAfrd.getPath () };
                         Log.d ("afrd", "Run: " + Arrays.toString (cmd));
                         Shell.run ("su", cmd, null, false);
                         break;

@@ -171,4 +171,7 @@
     <string name="about_showlic">See full text</string>
     <string name="about_hidelic">Hide full text</string>
     <string name="settings_title">Settings</string>
+    <string name="failed_detect_ostype">Failed to identify the Operating System!\n
+        [kernel %s, hardware %s, model %s]
+    </string>
 </resources>

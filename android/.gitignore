@@ -1,4 +1,4 @@
-.idea
-.gradle
-build
-captures
+/.idea
+/.gradle
+/build
+/captures

@@ -9,6 +9,7 @@
 
 #include "afrd.h"
 #include "colorspace.h"
+#include <unistd.h>
 
 display_mode_t *g_modes = NULL;
 int g_modes_n = 0;
@@ -82,7 +83,7 @@ void display_mode_add (display_mode_t *mode)
 	g_modes = (display_mode_t *)realloc (g_modes, sizeof (display_mode_t) * g_modes_n);
 	g_modes [g_modes_n - 1] = new_mode;
 
-	trace (2, "\t"DISPMODE_FMT"\n", DISPMODE_ARGS (new_mode, display_mode_hz (&new_mode)));
+	trace (2, "\t+ "DISPMODE_FMT"\n", DISPMODE_ARGS (new_mode, display_mode_hz (&new_mode)));
 }
 
 int display_modes_init ()
@@ -237,6 +238,11 @@ void display_mode_switch (display_mode_t *mode, bool force)
 		return;
 	}
 
+	char frac [2] = { mode->fractional ? '1' : '0', 0 };
+	sysfs_set_str (g_hdmi_dev, "frac_rate_policy", frac);
+
+	colorspace_apply (mode->name);
+
 	// fractional mode transition via special null mode
 	if (force ||
 	    ((strcmp (mode->name, g_current_mode.name) == 0) &&
@@ -245,11 +251,6 @@ void display_mode_switch (display_mode_t *mode, bool force)
 
 	trace (1, "Switching display mode to "DISPMODE_FMT"\n",
 		DISPMODE_ARGS (*mode, display_mode_hz (mode)));
-
-	char frac [2] = { mode->fractional ? '1' : '0', 0 };
-	sysfs_set_str (g_hdmi_dev, "frac_rate_policy", frac);
-
-	colorspace_apply (mode->name);
 
 	sysfs_write (g_mode_path, mode->name);
 	g_current_mode = *mode;

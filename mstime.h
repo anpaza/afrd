@@ -99,8 +99,9 @@ static inline int mstime_left (mstime_t *timer)
 }
 
 /**
- * Check if timer has expired.
- * If timer expires, it is disabled.
+ * Check if timer is enabled and has expired.
+ * If timer expires, it is disabled, so for any given armed timer
+ * the function will return true only once.
  *
  * Uses the g_mstime global variable.
  *
@@ -119,6 +120,30 @@ static inline bool mstime_expired (mstime_t *timer)
 
 	mstime_disable (timer);
 	return true;
+}
+
+/**
+ * Check if timer is disabled or expired.
+ * If timer expires, it is disabled, so this function will return
+ * true only while the timer is running.
+ *
+ * Uses the g_mstime global variable.
+ *
+ * @arg timer
+ *      A pointer to the variable that holds the timer.
+ * @return
+ *      true if timer still runs, false if expired or disabled.
+ */
+static inline bool mstime_running (mstime_t *timer)
+{
+	if (!mstime_enabled (timer))
+		return false;
+
+	if (mstime_left (timer) > 0)
+		return true;
+
+	mstime_disable (timer);
+	return false;
 }
 
 #endif /* __MSTIME_H__ */

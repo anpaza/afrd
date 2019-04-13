@@ -106,6 +106,18 @@ void shmem_fini ()
 	}
 }
 
+void shmem_emerg ()
+{
+	unlink (g_shmem_path);
+
+	if (g_shmem) {
+		// force clients to re-open the shm
+		g_shmem->size = 0;
+		g_shmem->crc32++;
+		msync (g_shmem, sizeof (afrd_shmem_t), MS_SYNC);
+	}
+}
+
 void shmem_update ()
 {
 	if (!g_shmem || g_shmem_read)

@@ -169,4 +169,7 @@
     <string name="about_showlic">Полный текст</string>
     <string name="about_hidelic">Спрятать текст</string>
     <string name="settings_title">Настройки</string>
+    <string name="failed_detect_ostype">Не удалось идентифицировать Операционную Систему!\n
+        [ядро %s, устройство %s, модель %s]
+    </string>
 </resources>

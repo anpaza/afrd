@@ -1,9 +1,9 @@
 GNU General Public License
 
-Русский перевод третьей версии от 29 июня 2007 года.
-Официальный оригинальный английский текст лицензии расположен здесь -
+  Русский перевод третьей версии от 29 июня 2007 года.
+  Официальный оригинальный английский текст лицензии расположен здесь -
 http://www.gnu.org/licenses/gpl-3.0.html
-Русский перевод: Антон Чернов (01 августа 2012 года) <a.-chernov@mail.ru>
+  Русский перевод: Антон Чернов (01 августа 2012 года) <a.-chernov@mail.ru>
 
 This is an unofficial translation of the GNU General Public License into
 Russian. It was not published by the Free Software Foundation, and does 

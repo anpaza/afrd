@@ -88,6 +88,12 @@ static mstime_t g_ost_config;
 static mstime_t g_ost_off;
 
 /**
+ * Will re-enable HDCP if getting an "HDCP HDMI off" event
+ * during this timer
+ */
+static mstime_t g_ost_hdcp;
+
+/**
  * Available sources for fps values
  */
 typedef enum
@@ -251,7 +257,7 @@ static int hz_round (int hz)
 		}
 	}
 
-	dtrace (3, "\t> hz "HZ_FMT" closest "HZ_FMT"\n", HZ_ARGS(hz), HZ_ARGS(closest_hz));
+	dtrace (2, "\t> hz "HZ_FMT" closest "HZ_FMT"\n", HZ_ARGS(hz), HZ_ARGS(closest_hz));
 
 	// if frame rates are close enough, consider them equal
 	if (hz_close (hz, closest_hz))
@@ -267,7 +273,7 @@ static void accumulate_fps (int hz, hz_source_t src)
 	hz_stat_t *stat = &g_state.hz_stat [src];
 	if (stat->weight && !hz_close (hz, stat->hz)) {
 		g_state.hz_stat [src].weight = 0;
-		trace (2, "Resetting Hz weight\n");
+		trace (2, "Resetting Hz weight src %d\n", src);
 	}
 
 	int weight = src_weight [src];
@@ -284,41 +290,38 @@ static void accumulate_fps (int hz, hz_source_t src)
 static int best_fps (bool last_chance)
 {
 	hz_stat_t *best_stat = NULL;
-	int best_prio = 0;
-	// if last chance, use any detection that we're at least half sure
-	int accept_weight = last_chance ? ACCEPT_HZ_WEIGHT/2 : ACCEPT_HZ_WEIGHT;
+	int best_weight = 0;
+	int best_src = -1;
 
 	for (int i = 0; i < SRC_COUNT; i++) {
-		if (best_prio > src_weight [i])
-			continue;
-
 		hz_stat_t *stat = &g_state.hz_stat [i];
-		if (stat->weight == 0)
-			continue;
 
 		if (last_chance) {
-			// last chance to detect fps
-			dtrace (3, "last_chance src %d weight %d\n", i, stat->weight);
-			if (stat->weight < accept_weight)
+			// if last chance, use any detection that we're at least half sure
+			if (stat->weight < ACCEPT_HZ_WEIGHT/2)
 				continue;
 		} else {
 			// we still have time, wait best src that has a chance to finish
-			if (!mstime_enabled (&stat->timeout) ||
-			    mstime_expired (&stat->timeout))
+			if (stat->weight < ACCEPT_HZ_WEIGHT) {
+				if (mstime_running (&stat->timeout))
+					break;
 				continue;
+			}
 		}
 
-		best_prio = src_weight [i];
-		best_stat = stat;
+		if (best_weight < stat->weight) {
+			best_weight = stat->weight;
+			best_stat = stat;
+			best_src = i;
+		}
 	}
 
-	if (best_stat)
-		dtrace (3, "best "HZ_FMT"Hz weight %d timeout %d\n",
-		        HZ_ARGS (best_stat->hz), best_stat->weight,
-		        mstime_left (&best_stat->timeout));
-
-	if (!best_stat || (best_stat->weight < accept_weight))
+	if (!best_stat)
 		return 0;
+
+	trace (2, "Best src %d "HZ_FMT"Hz weight %d timeout %d\n",
+	        best_src, HZ_ARGS (best_stat->hz), best_stat->weight,
+	        mstime_left (&best_stat->timeout));
 
 	return best_stat->hz;
 }
@@ -345,7 +348,7 @@ static bool query_vdec_blocks ()
 	unsigned nframes = find_ulong (line, ",frames:", &ok);
 	unsigned timeint = find_ulong (line, ",dur:", &ok);
 
-	dtrace (3, "\t> dsize %u frames %u dur %u\n", dsize, nframes, timeint);
+	dtrace (2, "\t> dsize %u frames %u dur %u\n", dsize, nframes, timeint);
 
 	// if we don't have enough stats, don't take it into account
 	if (!ok || nframes < 5 || timeint < 120 ||
@@ -357,7 +360,7 @@ static bool query_vdec_blocks ()
 	if (hz == 0)
 		return false;
 
-	trace (2, "\t%d frames played over last %dms at "HZ_FMT"fps\n",
+	trace (2, "\t> %d frames played over last %dms at "HZ_FMT"fps\n",
 		nframes, timeint, HZ_ARGS (hz));
 	accumulate_fps (hz, SRC_BLOCKS);
 	return true;
@@ -446,9 +449,10 @@ static bool query_vdec_chunks ()
 	if (avg_count < 3)
 		return false;
 
-	dtrace (3, "\t> %d pts in %d us, base pts %d\n", avg_count, avg_pts, base_pts);
+	trace (2, "\t> %d pts in %d us, base pts %d\n", avg_count, avg_pts, base_pts);
 
-	int hz = hz_round ((avg_count * 256 * 1000) / (avg_pts / 1000));
+	// warning: 32 bits easily overflow here, using longlong.
+	int hz = hz_round ((avg_count * 256000000ULL) / avg_pts);
 	if (hz == 0)
 		return false;
 
@@ -468,7 +472,7 @@ static bool query_vdec ()
 	snprintf (line, sizeof (line), "%s/vdec_status", g_vdec_sysfs);
 	FILE *vsf = fopen (line, "r");
 	if (!vsf) {
-		trace (1, "Failed to open %s/vdec_status\n", g_vdec_sysfs);
+		trace (1, "\t> Failed to open %s/vdec_status\n", g_vdec_sysfs);
 		g_vdec_sysfs = NULL;
 		return false;
 	}
@@ -496,7 +500,7 @@ static bool query_vdec ()
 		cur = strchr (cur, 0);
 		strip_trailing_spaces (cur, val);
 
-		dtrace (4, "\tattr [%s] val [%s]\n", attr, val);
+		dtrace (2, "\tattr [%s] val [%s]\n", attr, val);
 
 		if (strcmp (attr, "frame rate") == 0) {
 			char *endp;
@@ -506,7 +510,7 @@ static bool query_vdec ()
 				trace (2, "\tgarbage at end of 'frame rate': [%s]\n", endp);
 				fps = 0;
 			} else
-				trace (3, "\t> frame rate %d\n", fps);
+				trace (2, "\t> frame rate %d\n", fps);
 		} else if (strcmp (attr, "frame dur") == 0) {
 			char *endp;
 			frame_dur = strtol (val, &endp, 10);
@@ -514,7 +518,7 @@ static bool query_vdec ()
 				trace (2, "\tgarbage at end of 'frame dur': [%s]\n", endp);
 				frame_dur = 0;
 			} else
-				trace (3, "\t> frame dur %d\n", frame_dur);
+				trace (2, "\t> frame dur %d\n", frame_dur);
 		}
 	}
 
@@ -535,7 +539,7 @@ static bool query_vdec ()
 			case 30:
 			case 50:
 			case 60: hz = (fps << 8); break;
-			default: trace (3, "ignoring non-standard frame rate %d fps\n", fps); break;
+			default: trace (2, "ignoring non-standard frame rate %d fps\n", fps); break;
 		}
 	}
 
@@ -568,6 +572,7 @@ static void framerate_restore (bool only_if_black)
 	if (only_if_black && !g_blackened)
 		return;
 
+	mstime_arm (&g_ost_hdcp, DEFAULT_SWITCH_HDCP);
 	if (g_state.orig_mode.name [0])
 		display_mode_switch (&g_state.orig_mode, false);
 	else
@@ -598,7 +603,7 @@ static void framerate_switch (bool force)
 	    mstime_expired (&g_state.hz_ost)) {
 		g_state.hz = best_fps (true);
 		if (g_state.hz == 0) {
-			trace (1, "Timeout detecting movie frame rate, giving up\n");
+giveup:			trace (1, "Timeout detecting movie frame rate, giving up\n");
 			framerate_restore (true);
 			return;
 		}
@@ -611,9 +616,11 @@ static void framerate_switch (bool force)
 		query_vdec ();
 		g_state.hz = best_fps (false);
 		if (g_state.hz == 0) {
-			// Cannot determine movie frame rate, retry later
-			if (g_switch_delay_retry)
-				mstime_arm (&g_ost_switch, g_switch_delay_retry);
+			// Cannot determine movie frame rate, retry if allowed
+			if (!g_switch_delay_retry)
+				goto giveup;
+
+			mstime_arm (&g_ost_switch, g_switch_delay_retry);
 			return;
 		}
 	}
@@ -710,6 +717,7 @@ static void framerate_switch (bool force)
 	if (!g_state.orig_mode.name [0])
 		g_state.orig_mode = g_current_mode;
 
+	mstime_arm (&g_ost_hdcp, DEFAULT_SWITCH_HDCP);
 	display_mode_switch (&best_mode, force);
 	update_stats ();
 }
@@ -728,8 +736,7 @@ static void delay_framerate_switch (bool restore, int hz, const char *modalias)
 	if (g_switch_ignore) {
 		if (restore)
 			mstime_arm (&g_ost_off, g_switch_ignore);
-		else if (mstime_enabled (&g_ost_off) &&
-		         !mstime_expired (&g_ost_off) &&
+		else if (mstime_running (&g_ost_off) &&
 		         !g_blackened &&
 		         !g_state.delayed_switch) {
 			trace (1, "Ignore framerate switch because restore event was %d ms ago\n",
@@ -776,8 +783,7 @@ static void delay_framerate_switch (bool restore, int hz, const char *modalias)
 
 	// check for frame_rate_hint via API
 	if (!restore &&
-	    mstime_enabled (&g_frame_rate_hint.stamp) &&
-	    !mstime_expired (&g_frame_rate_hint.stamp))
+	    mstime_running (&g_frame_rate_hint.stamp))
 		hz = g_frame_rate_hint.fps;
 
 	// if we known fps, use it
@@ -839,7 +845,7 @@ static void handle_uevent (char *msg, ssize_t size)
 			trace (2, "Parsing uevent %s\n", msg);
 			continue;
 		} else
-			trace (3, "\t> %s\n", msg);
+			trace (2, "\t> %s\n", msg);
 
 		char *val = strchr (msg, '=');
 		if (val)
@@ -877,7 +883,7 @@ static void handle_uevent (char *msg, ssize_t size)
 					return;
 				}
 
-				int fr_hz = (256*96000 + frh / 2) / frh;
+				int fr_hz = hz_round ((256*96000 + frh / 2) / frh);
 				delay_framerate_switch (false, fr_hz, modalias);
 			}
 		} else if (frame_rate_end_hint)
@@ -897,7 +903,9 @@ static void handle_uevent (char *msg, ssize_t size)
 		mstime_arm (&g_ost_hdmi, g_switch_hdmi);
 
 	} else if (uevent_filter_matched (&g_filter_hdcp)) {
-		if (g_state.orig_mode.name [0] != 0) {
+		// If playing or within a few seconds after a video mode switch
+		if (g_state.orig_mode.name [0] ||
+		    mstime_running (&g_ost_hdcp)) {
 			/* HDCP turned HDMI off, turn it back on */
 			trace (1, "HDCP disabled HDMI, re-enable HDCP 1.4\n");
 			sysfs_set_str (g_hdmi_dev, "hdcp_mode", "1");
@@ -1019,6 +1027,7 @@ int afrd_run ()
 	mstime_disable (&g_ost_hdmi);
 	mstime_disable (&g_ost_blackout);
 	mstime_disable (&g_ost_off);
+	mstime_disable (&g_ost_hdcp);
 
 	// Check config timestamp timer
 	mstime_arm (&g_ost_config, 1);
@@ -1268,4 +1277,11 @@ void afrd_fini ()
 	shmem_fini ();
 	androp_fini ();
 	trace_log (NULL);
+}
+
+void afrd_emerg ()
+{
+	shmem_emerg ();
+	if (g_state.orig_mode.name [0])
+		framerate_restore (false);
 }

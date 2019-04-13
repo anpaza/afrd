@@ -7,6 +7,7 @@
 
 package ru.cobra.zap.afrd;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.util.Log;
 
@@ -14,6 +15,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 
 /**
@@ -106,5 +108,24 @@ class jfun
         }
 
         return false;
+    }
+
+    // android.os.SystemProperties is not available anymore, so we have to use reflection
+    static String getProperty (String name)
+    {
+        try
+        {
+            @SuppressLint ("PrivateApi") @SuppressWarnings("rawtypes")
+            Class SystemProperties = Class.forName("android.os.SystemProperties");
+            @SuppressWarnings("unchecked")
+            Method get = SystemProperties.getMethod ("get", String.class);
+            if (get != null)
+                return (String) get.invoke (SystemProperties, new Object[] {name});
+        }
+        catch (Exception e)
+        {
+            logExc ("getProperty", e);
+        }
+        return "";
     }
 }

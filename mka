@@ -28,7 +28,10 @@ fi
 
 cp config/afrd-android7-.ini android/app/src/main/res/raw/afrd_7.ini
 cp config/afrd-android8+.ini android/app/src/main/res/raw/afrd_8.ini
+cp config/afrd-minix7-.ini android/app/src/main/res/raw/afrd_minix7.ini
 cp ChangeLog-en.txt android/app/src/main/res/raw/changelog.txt
 cp ChangeLog-ru.txt android/app/src/main/res/raw-ru/changelog.txt
 cp FAQ-en.txt android/app/src/main/res/raw/faq.txt
 cp FAQ-ru.txt android/app/src/main/res/raw-ru/faq.txt
+cp COPYING.txt android/app/src/main/res/raw/copying.txt
+cp COPYING-ru.txt android/app/src/main/res/raw-ru/copying.txt
