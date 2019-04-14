@@ -7,6 +7,7 @@
 
 package ru.cobra.zap.afrd.gui;
 
+import android.animation.LayoutTransition;
 import android.app.Fragment;
 import android.content.Context;
 import android.os.Bundle;
@@ -14,6 +15,7 @@ import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
@@ -56,6 +58,12 @@ public class StatusFragment extends Fragment
         mModified = root.findViewById (R.id.toggleModified);
         mBlackened = root.findViewById (R.id.toggleBlackened);
         mNoSignal = root.findViewById (R.id.no_signal);
+
+        LinearLayout status_layout = root.findViewById (R.id.status_layout);
+        LayoutTransition lt = new LayoutTransition ();
+        lt.setDuration (1000);
+        status_layout.setLayoutTransition (lt);
+
         return root;
     }
 
