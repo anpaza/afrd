@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
               xmlns:app="http://schemas.android.com/apk/res-auto"
               xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
-              android:layout_height="match_parent" android:orientation="vertical"
+              android:layout_height="match_parent" android:animateLayoutChanges="true" android:orientation="vertical"
               tools:context=".FAQFragment">
 
     <LinearLayout android:layout_width="match_parent" android:layout_height="40sp"
@@ -15,13 +15,9 @@
     </LinearLayout>
 
     <ListView android:id="@+id/qlist" android:layout_width="match_parent"
-              android:layout_height="0dp" android:layout_weight="3"/>
-    <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
-                android:layout_weight="1" android:background="@drawable/viewback"
-                android:clickable="true" android:focusable="true"
-                android:focusableInTouchMode="true">
-        <LinearLayout android:id="@+id/answer" android:layout_width="match_parent"
-                      android:layout_height="wrap_content" android:animateLayoutChanges="true"
-                      android:orientation="vertical"/>
-    </ScrollView>
+              android:layout_height="match_parent" android:visibility="visible"/>
+
+    <LinearLayout android:id="@+id/answer" android:layout_width="match_parent"
+                  android:layout_height="match_parent" android:background="@drawable/viewback"
+                  android:orientation="vertical" android:visibility="gone"/>
 </LinearLayout>

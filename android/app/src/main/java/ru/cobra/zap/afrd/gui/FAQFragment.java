@@ -7,7 +7,9 @@
 
 package ru.cobra.zap.afrd.gui;
 
+import android.animation.LayoutTransition;
 import android.app.Fragment;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.ArrayMap;
@@ -17,6 +19,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
@@ -32,7 +35,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
-public class FAQFragment extends Fragment
+public class FAQFragment
+    extends Fragment
+    implements MainActivity.FragmentBack
 {
     private static class Question
     {
@@ -90,6 +95,11 @@ public class FAQFragment extends Fragment
         mQuestList = root.findViewById (R.id.qlist);
         mAnswer = root.findViewById (R.id.answer);
 
+        LayoutTransition lt = new LayoutTransition ();
+        lt.setDuration (500);
+        lt.disableTransitionType (LayoutTransition.DISAPPEARING);
+        mAnswer.setLayoutTransition (lt);
+
         loadFaq ();
         fillQuestions ();
 
@@ -134,12 +144,18 @@ public class FAQFragment extends Fragment
     private void showAnswer (int position)
     {
         int delay;
-        if (position != mQuestionIndex)
+        if ((position < 0) || (position > mFAQ.size ()))
+            return;
+        else if (position != mQuestionIndex)
         {
-            mAnswer.removeAllViews ();
             mQuestionIndex = position;
             mAnswerIndex = 0;
             mTimer.removeCallbacks (mAnsRun);
+
+            mAnswer.removeAllViews ();
+            mAnswer.setVisibility (View.VISIBLE);
+            mQuestList.setVisibility (View.GONE);
+            mAnswer.requestFocus ();
             delay = 250;
         }
         else
@@ -149,6 +165,10 @@ public class FAQFragment extends Fragment
             {
                 // finita la comedia
                 mQuestionIndex = -1;
+
+                ImageView div = new ImageView (getContext ());
+                div.setImageResource (R.drawable.text_divider);
+                mAnswer.addView (div);
                 return;
             }
 
@@ -159,11 +179,30 @@ public class FAQFragment extends Fragment
             tv.setTextSize (TypedValue.COMPLEX_UNIT_SP, 18);
             tv.setGravity (Gravity.CENTER_VERTICAL | Gravity.START);
             tv.setPadding (dp16, dp16 / 4, dp16, dp16 / 4);
+            tv.setFocusable (true);
+            tv.setFocusableInTouchMode (true);
+            tv.setClickable (true);
+            tv.setBackgroundResource (R.drawable.viewback);
             mAnswer.addView (tv);
-            delay = 1000;
+            delay = 50;
+
+            if (mAnswerIndex == 1)
+                tv.requestFocus ();
         }
 
         mTimer.postDelayed (mAnsRun, delay);
+    }
+
+    public boolean onBackPressed ()
+    {
+        if (mAnswer.getVisibility () == View.GONE)
+            return false;
+
+        mTimer.removeCallbacks (mAnsRun);
+        mAnswer.setVisibility (View.GONE);
+        mQuestList.setVisibility (View.VISIBLE);
+        mQuestList.requestFocus ();
+        return true;
     }
 
     private enum ReadMode

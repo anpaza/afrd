@@ -16,17 +16,22 @@ import android.preference.MultiSelectListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceGroup;
+import android.preference.PreferenceScreen;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+
+import java.util.Vector;
 
 /**
  * This fragment implements a editor for AFRd settings.
  */
 public class SettingsFragment extends PreferenceFragment
-    implements SharedPreferences.OnSharedPreferenceChangeListener
+    implements SharedPreferences.OnSharedPreferenceChangeListener,
+        MainActivity.FragmentBack, MainActivity.FragmentPref
 {
     private MainActivity mMain;
+    Vector<PreferenceScreen> mPrefStack = new Vector<> ();
 
     static SettingsFragment create ()
     {
@@ -111,4 +116,30 @@ public class SettingsFragment extends PreferenceFragment
         if (mMain != null)
             mMain.applyPrefs ();
     };
+
+    @Override
+    public boolean onBackPressed ()
+    {
+        if (mPrefStack.size () > 0)
+        {
+            int last = mPrefStack.size () - 1;
+            PreferenceScreen ps = mPrefStack.elementAt (last);
+            mPrefStack.removeElementAt (last);
+            setPreferenceScreen (ps);
+            return true;
+        }
+
+        return false;
+    }
+
+    @Override
+    public boolean onPreferenceStartFragment (PreferenceFragment caller, Preference pref)
+    {
+        if (pref instanceof PreferenceScreen)
+        {
+            mPrefStack.add (caller.getPreferenceScreen ());
+            caller.setPreferenceScreen ((PreferenceScreen) pref);
+        }
+        return false;
+    }
 }

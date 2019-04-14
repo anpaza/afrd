@@ -54,9 +54,10 @@ public class MainActivity extends Activity
     PackageInfo mPackageInfo;
     Control mControl;
     SharedPreferences mOptions;
-    Vector<PreferenceScreen> mPrefStack;
     // used for the "press Back again to quit" thing
     long mBackTime = 0;
+    // We don't use fragment stack; instead, we always have just one active fragment
+    Fragment activeFrag;
 
     @Override
     protected void onCreate (Bundle savedInstanceState)
@@ -69,8 +70,6 @@ public class MainActivity extends Activity
             ab.hide ();
 
         setContentView (R.layout.activity_main);
-
-        mPrefStack = new Vector<> ();
 
         try
         {
@@ -338,13 +337,12 @@ public class MainActivity extends Activity
 
         if (toplevel)
         {
-            mPrefStack.clear ();
-
             if (fm.getBackStackEntryCount () > 0)
                 fm.popBackStack (fm.getBackStackEntryAt (0).getId (),
                     FragmentManager.POP_BACK_STACK_INCLUSIVE);
         }
 
+        activeFrag = fragment;
         fm.beginTransaction ().
             replace (R.id.content_holder, fragment, tag).
             setTransition (FragmentTransaction.TRANSIT_FRAGMENT_FADE).
@@ -365,29 +363,18 @@ public class MainActivity extends Activity
     @Override
     public boolean onPreferenceStartFragment (PreferenceFragment caller, Preference pref)
     {
-        if (pref instanceof PreferenceScreen)
-        {
-            mPrefStack.add (caller.getPreferenceScreen ());
-            caller.setPreferenceScreen ((PreferenceScreen) pref);
-        }
+        if (activeFrag instanceof FragmentPref)
+            return ((FragmentPref) activeFrag).onPreferenceStartFragment (caller, pref);
+
         return false;
     }
 
     @Override
     public void onBackPressed ()
     {
-        if (mPrefStack.size () > 0)
-        {
-            PreferenceFragment frag = (PreferenceFragment) getFragment ("settings");
-            if (frag != null)
-            {
-                int last = mPrefStack.size () - 1;
-                PreferenceScreen ps = mPrefStack.elementAt (last);
-                mPrefStack.removeElementAt (last);
-                frag.setPreferenceScreen (ps);
+        if (activeFrag instanceof FragmentBack)
+            if (((FragmentBack) activeFrag).onBackPressed ())
                 return;
-            }
-        }
 
         long now = System.currentTimeMillis ();
         if ((mBackTime == 0) || (now - mBackTime > 1000))
@@ -441,5 +428,15 @@ public class MainActivity extends Activity
         // reset preferences if it is the active fragment
         if (getFragment ("settings") != null)
             addFragment (new SettingsFragment (), "settings");
+    }
+
+    interface FragmentBack
+    {
+        boolean onBackPressed ();
+    }
+
+    interface FragmentPref
+    {
+        boolean onPreferenceStartFragment (PreferenceFragment caller, Preference pref);
     }
 }

@@ -17,7 +17,8 @@
                 android:layout_marginEnd="16dp" android:text="@string/about_showlic"/>
     </LinearLayout>
 
-    <ScrollView android:layout_width="match_parent" android:layout_height="wrap_content">
+    <ScrollView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:animateLayoutChanges="true">
         <TextView android:id="@+id/license" android:layout_width="match_parent"
                   android:layout_height="wrap_content" android:background="@drawable/viewback"
                   android:clickable="true" android:focusable="true"

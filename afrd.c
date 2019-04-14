@@ -737,6 +737,7 @@ static void delay_framerate_switch (bool restore, int hz, const char *modalias)
 		if (restore)
 			mstime_arm (&g_ost_off, g_switch_ignore);
 		else if (mstime_running (&g_ost_off) &&
+			 (g_state.orig_mode.name [0] != 0) &&
 		         !g_blackened &&
 		         !g_state.delayed_switch) {
 			trace (1, "Ignore framerate switch because restore event was %d ms ago\n",

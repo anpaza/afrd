@@ -1,3 +1,38 @@
+? What is Automatic Frame Rate (AFR)?
+? Do I really need this program?
+
+! Motion video is always filmed at certain frame rate.
+! Traditional movies are shot at 24 frames per second, TV broadcasting
+! uses 30/60 (NTSC standard) or 25/50 (PAL and SECAM standards) frames
+! per second.
+
+! TV will display content at a certain frame rate, which is called
+! "vertical refresh rate". Most TVs and displays can work at different
+! refresh rates.
+
+! When movie framerate is not a multiple of refresh rate, the picture
+! will play perceptibly non-evenly, which is sometimes referred as
+! "judder". This is especially perceived on scenes where camera
+! slowly moves sideways (panning). For example, when playing a 24
+! frames per second video on a TV which uses a 60 Hz refresh rate,
+! the order of frames displayed on TV will be:
+
+! 0 0 0 1 1 2 2 2 3 3 4 4 4 5 5 6 6 6 7 7 ...
+
+! As you can see, frames are displayed for a different period of time:
+! even frames are displayed three times (3/60 seconds) while odd frames
+! are displayed just two times (2/60 seconds). This is what makes you
+! feel uncomfortable while watching such content.
+
+! AFR is the process of harmonization between video frame rate and
+! vertical refresh rate. This doesn't always mean that refresh rate
+! must be set exactly to video frame rate; it is only important that
+! refresh rate must be a multiple of frame rate. For example, it is
+! perfectly acceptable to watch 30 frames-per-second content on a
+! 60Hz refresh rate display, because every frame will be displayed
+! two times (2/60 seconds), which is same as 1/30 seconds you would
+! get if refresh rate would be 30Hz.
+
 ? I still see "judder" in videos. Why?
 ? Despite the fact that AFRd correctly switches refresh rate, I still
 ? see frame judder on playback.
@@ -100,3 +135,18 @@
 ! you won't see the difference between a 23.976 and 24 Hz refresh,
 ! a slight error here will result in just a single frame inserted
 ! or removed every ~41 seconds.
+
+? Why refresh rate doesn't switch on low-res videos in KODI/SPMC?
+? When playing in KODI/SPMC videos with low resolution (less than 720p),
+? refresh rate doesn't switch. Same happens with MX Player when using
+? the "SW" decoder option.
+
+! AFRd supports automatical framerate switching only when using the
+! hardware decoder. KODI developers decided to use, when possible
+! (if enough processor power) the software decoder.
+
+! In SPMC you can solve this problem by changing the options
+! "Accelerate MPEG2/MPEG4/h264/hevc" to "Always" in section
+! "Settings -> Player". In MX Player problem is solved by choosing
+! "HW" or "HW+" decoder option. In KODI this problem has no solution
+! yet.
