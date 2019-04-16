@@ -13,7 +13,7 @@
     <string name="msg_title_critical_error">Critical error</string>
     <string name="arch_not_supported">CPU architecture \'%s\' is not supported by afrd</string>
     <string name="only_amlogic">This application supports only AmLogic SoC based
-        devices.
+        devices, and your hardware is \'%s\'.
     </string>
     <string name="failed_copy_raw">Failed to copy resource file to %s</string>
     <string name="prefs_enable">Enable Auto Frame Rate</string>

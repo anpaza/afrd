@@ -75,7 +75,7 @@
     <string name="l_afrd_version">Версия демона Автоматического Подбора Частоты</string>
     <string name="l_afrd_enabled">Демон включён</string>
     <string name="only_amlogic">Это приложение поддерживает только устройства на базе процессоров
-        AmLogic.
+        AmLogic, в то время, как Ваш процессор - \'%s\'.
     </string>
     <string name="l_current_hz">Текущая частота вертикальной развёртки</string>
     <string name="l_blackened">Экран затемнён</string>

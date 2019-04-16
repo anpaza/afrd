@@ -30,6 +30,10 @@ public class Control
     private static final String SYSFS_ANDROID67 = "/sys/class/switch/hdmi/state";
     // this attribute exists on Android 8 & 9
     private static final String SYSFS_ANDROID89 = "/sys/class/switch/hdmi/cable.0/state";
+    // these attributes should exist on all but castrated by MINIX kernels
+    private static final String SYSFS_NOT_MINIX_1 = "/sys/class/vdec/vdec_status";
+    private static final String SYSFS_NOT_MINIX_2 = "/sys/class/vdec/dump_vdec_blocks";
+    private static final String SYSFS_NOT_MINIX_3 = "/sys/class/vdec/dump_vdec_chunks";
 
     public File mIni;
     public File mAfrd;
@@ -95,8 +99,11 @@ public class Control
 
         int res_id;
         if (!hardware.equalsIgnoreCase ("amlogic"))
-            return ctx.getString (R.string.only_amlogic);
-        else if (model.equalsIgnoreCase ("NEO-U9-H") && kver.startsWith ("3.14.29"))
+            return ctx.getString (R.string.only_amlogic, hardware);
+        else if (kver.startsWith ("3.14.29") &&
+            !new File (SYSFS_NOT_MINIX_1).exists () &&
+            !new File (SYSFS_NOT_MINIX_2).exists () &&
+            !new File (SYSFS_NOT_MINIX_3).exists ())
             res_id = R.raw.afrd_minix7;
         else if (kver.startsWith ("4.") && new File (SYSFS_ANDROID89).exists ())
             // Android 8 or 9
