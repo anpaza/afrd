@@ -35,7 +35,7 @@
 #include "afrd.h"
 
 const char *g_version = "0.3.2";
-const char *g_ver_sfx = "beta5";
+const char *g_ver_sfx = "beta6";
 const char *g_bdate = BDATE;
 const char *g_config = "/etc/afrd.ini";
 const char *g_pidfile =
@@ -59,7 +59,7 @@ struct cfg_struct *g_cfg = NULL;
 
 static void show_version ()
 {
-	printf ("afr daemon version %s built %s\n", g_version, g_bdate);
+	printf ("afr daemon version %s%s built %s\n", g_version, g_ver_sfx, g_bdate);
 }
 
 static void show_help (char *const *argv)

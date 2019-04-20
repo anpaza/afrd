@@ -255,6 +255,8 @@ void display_mode_switch (display_mode_t *mode, bool force)
 	sysfs_write (g_mode_path, mode->name);
 	g_current_mode = *mode;
 	g_blackened = false;
+
+	hdcp_restore ();
 }
 
 void display_mode_null ()

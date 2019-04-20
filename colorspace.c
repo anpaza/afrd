@@ -374,8 +374,6 @@ void colorspace_init ()
 
 	if (!colorspace_parse_filter (cs_select))
 		return;
-
-	colorspace_refresh ();
 }
 
 void colorspace_fini ()

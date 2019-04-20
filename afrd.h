@@ -31,6 +31,7 @@
 #define DEFAULT_HDMI_STATE		"/sys/class/switch/hdmi/state"
 #define DEFAULT_VIDEO_MODE		"/sys/class/display/mode"
 #define DEFAULT_VDEC_SYSFS		"/sys/class/vdec"
+#define DEFAULT_HDCP_AUTHENTICATED	"/sys/module/hdmitx20/parameters/hdmi_authenticated"
 #define DEFAULT_SWITCH_DELAY_ON		250
 #define DEFAULT_SWITCH_DELAY_OFF	5000
 #define DEFAULT_SWITCH_DELAY_RETRY	500
@@ -135,6 +136,15 @@ extern void display_mode_set_hz (display_mode_t *mode, int hz);
 extern void display_mode_switch (display_mode_t *mode, bool force);
 // disable the screen
 extern void display_mode_null ();
+
+// detect current HDCP mode
+extern void hdcp_init ();
+// terminate HDCP stuff
+extern void hdcp_fini ();
+// restore HDCP state as detected
+extern void hdcp_restore ();
+// check if HDCP is supported but disabled and enable it back if so
+extern void hdcp_check ();
 
 // load config from file
 extern int load_config (const char *config);

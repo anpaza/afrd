@@ -94,6 +94,11 @@ static mstime_t g_ost_off;
 static mstime_t g_ost_hdcp;
 
 /**
+ * Periodic HDCP sanity check
+ */
+static mstime_t g_ost_hdcp_check;
+
+/**
  * Available sources for fps values
  */
 typedef enum
@@ -815,16 +820,20 @@ static void delay_framerate_switch (bool restore, int hz, const char *modalias)
 	}
 }
 
-static void handle_hdmi_switch ()
+static void handle_hdmi_switch (int state)
 {
-	int hs = sysfs_get_int (g_hdmi_state, NULL);
-	if (hs <= 0) {
+	if (state == -1)
+		state = sysfs_get_int (g_hdmi_state, NULL);
+
+	if (state <= 0) {
 		trace (1, "HDMI not active, clearing video mode list\n");
+		hdcp_fini ();
 		display_modes_fini ();
 		memset (&g_state.orig_mode, 0, sizeof (g_state.orig_mode));
 	} else {
 		display_modes_init ();
 		colorspace_refresh ();
+		hdcp_init ();
 	}
 }
 
@@ -909,7 +918,7 @@ static void handle_uevent (char *msg, ssize_t size)
 		    mstime_running (&g_ost_hdcp)) {
 			/* HDCP turned HDMI off, turn it back on */
 			trace (1, "HDCP disabled HDMI, re-enable HDCP 1.4\n");
-			sysfs_set_str (g_hdmi_dev, "hdcp_mode", "1");
+			hdcp_restore ();
 		}
 
 	} else
@@ -1034,6 +1043,9 @@ int afrd_run ()
 	mstime_arm (&g_ost_config, 1);
 	g_config_mtime = mtime (g_config);
 
+	// Check HDCP status regularily
+	mstime_arm (&g_ost_hdcp_check, 8000);
+
 	update_stats ();
 
 	while (!g_shutdown) {
@@ -1047,6 +1059,7 @@ int afrd_run ()
 		to = min_time (to, &g_ost_hdmi);
 		to = min_time (to, &g_ost_blackout);
 		to = min_time (to, &g_ost_config);
+		to = min_time (to, &g_ost_hdcp_check);
 
 		// this should never happen as g_ost_config is always active, but
 		// anyway don't allow to sleep indefinitely 'cause we can't detect
@@ -1083,7 +1096,7 @@ int afrd_run ()
 		// query supported video modes after HDMI has been plugged on
 		if (mstime_expired (&g_ost_hdmi)) {
 			mstime_disable (&g_ost_hdmi);
-			handle_hdmi_switch ();
+			handle_hdmi_switch (-1);
 		}
 
 		// check config timestamp and reload it if so
@@ -1101,6 +1114,12 @@ int afrd_run ()
 				}
 			} else
 				mstime_arm (&g_ost_config, 1000);
+		}
+
+		// check if HDCP is supported but disabled
+		if (mstime_expired (&g_ost_hdcp_check)) {
+			mstime_arm (&g_ost_hdcp_check, 8000);
+			hdcp_check ();
 		}
 	}
 
@@ -1185,7 +1204,7 @@ int afrd_init ()
 	if (log_file && log_enable)
 		trace_log (log_file);
 
-	trace (1, "afrd v%s built at %s is initializing\n", g_version, g_bdate);
+	trace (1, "afrd v%s%s built at %s is initializing\n", g_version, g_ver_sfx, g_bdate);
 
 	struct utsname un;
 	if (uname (&un) != 0)
@@ -1239,15 +1258,19 @@ int afrd_init ()
 		return EPERM;
 	}
 
-	display_modes_init ();
 	colorspace_init ();
 	apisock_init ();
+	handle_hdmi_switch (1);
 
 	return 0;
 }
 
 void afrd_fini ()
 {
+	handle_hdmi_switch (0);
+	apisock_fini ();
+	colorspace_fini ();
+
 	if (g_uevent_sock != -1) {
 		close (g_uevent_sock);
 		g_uevent_sock = -1;
@@ -1265,10 +1288,6 @@ void afrd_fini ()
 	g_hdmi_state = NULL;
 	g_mode_path = NULL;
 	g_vdec_sysfs = NULL;
-
-	apisock_fini ();
-	display_modes_fini ();
-	colorspace_fini ();
 
 	if (g_cfg) {
 		cfg_free (g_cfg);
