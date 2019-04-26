@@ -142,7 +142,7 @@ extern void hdcp_init ();
 // terminate HDCP stuff
 extern void hdcp_fini ();
 // restore HDCP state as detected
-extern void hdcp_restore ();
+extern void hdcp_restore (bool force);
 // check if HDCP is supported but disabled and enable it back if so
 extern void hdcp_check ();
 

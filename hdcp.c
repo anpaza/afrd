@@ -40,12 +40,15 @@ void hdcp_fini ()
 	g_hdcp_enabled = 0;
 }
 
-void hdcp_restore ()
+void hdcp_restore (bool force)
 {
 	static const char hdcp_mode [][3] =
 	{
 		"0", "14", "22"
 	};
+
+	if (force && (g_hdcp_enabled == 0))
+		g_hdcp_enabled = 1;
 
 	if ((g_hdcp_enabled == 0) || g_blackened)
 		return;
@@ -67,5 +70,5 @@ void hdcp_check ()
 	free (auth);
 
 	if (disabled)
-		hdcp_restore ();
+		hdcp_restore (false);
 }

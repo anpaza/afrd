@@ -1,4 +1,4 @@
-0.3.2
+0.3.2 Fri Apr 26 23:09:17 MSK 2019
 
     Implemented HDMI re-enabling after HDCP turns off. Usually happens
     after TV refresh rate switch and can lead to "black screen".

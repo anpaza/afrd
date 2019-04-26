@@ -9,13 +9,22 @@ android {
         versionCode 2
         versionName '0.3.2'
         targetSdkVersion 28
-        versionNameSuffix 'beta6'
+        versionNameSuffix ''
         project.ext.set ('archivesBaseName', "${applicationId}-${versionName}${versionNameSuffix}".toString ())
+    }
+    signingConfigs {
+        zap {
+            storeFile file("zap.jks")
+            keyAlias "key0"
+            storePassword "123456"
+            keyPassword "654321"
+        }
     }
     buildTypes {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.zap
         }
         debug {
         }

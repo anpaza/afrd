@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# This script will build a release APK from scratch.
+#
+
+test -z "$NDK" && export NDK=/usr/local/app/Android/SDK/ndk-bundle
+
+# abort on first error
+set -e
+
+./mka clean
+./mka
+
+pushd android &>/dev/null
+./gradlew clean
+./gradlew assembleRelease
+popd &>/dev/null
+
+OUT=android/app/build/outputs/apk/release
+APK=$(find $OUT -name '*.apk')
+if test -z "$APK" ; then
+	echo "No built APK file in $OUT"
+	exit
+fi
+
+VERSION=`sed main.c -ne '/const char \*g_version/{' -e 's/^.*= *"//' -e 's/".*$//' -e p -e '}'`
+SUFFIX=`sed main.c -ne '/const char \*g_ver_sfx/{' -e 's/^.*= *"//' -e 's/".*$//' -e p -e '}'`
+
+mkdir -p release
+RELEASE=releases/ru.cobra.zap.afrd-${VERSION}${SUFFIX}.apk
+mv $APK $RELEASE
+
+echo "Finished $RELEASE"

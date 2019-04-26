@@ -918,7 +918,7 @@ static void handle_uevent (char *msg, ssize_t size)
 		    mstime_running (&g_ost_hdcp)) {
 			/* HDCP turned HDMI off, turn it back on */
 			trace (1, "HDCP disabled HDMI, re-enable HDCP 1.4\n");
-			hdcp_restore ();
+			hdcp_restore (true);
 		}
 
 	} else

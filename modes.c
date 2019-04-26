@@ -256,7 +256,7 @@ void display_mode_switch (display_mode_t *mode, bool force)
 	g_current_mode = *mode;
 	g_blackened = false;
 
-	hdcp_restore ();
+	hdcp_restore (false);
 }
 
 void display_mode_null ()
