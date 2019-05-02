@@ -33,6 +33,27 @@
 ! two times (2/60 seconds), which is same as 1/30 seconds you would
 ! get if refresh rate would be 30Hz.
 
+? Should I disable "system" auto framerate when using AFRd?
+? Many video players (KODI/SPMC, ViMu, Smart Youtube etc) have a option
+? to adjust TV refresh rate according to video. Should I enable it?
+
+! First of all, on most AmLogic-based devices these option do nothing.
+! In most cases it is broken - either in kernel, or in Android itself.
+! In some cases this option requires special support in Android API,
+! which is non-existent in most cases on AmLogic devices (except on
+! some Beelink and Minix boxes, maybe some others).
+
+! Second, no matter if it works, you must disable it - especially
+! if it really works, like the "framerate switcher" addon for KODI/SPMC.
+! The reason is that two working AFRs will always conflict.
+
+! In the better case you'll get longer "black screens" during refresh
+! rate switches, and in worst case you can even get "black screen forever"
+! until reboot.
+
+! That's why I always insist on disabling all other AFR subsystems
+! if you're using AFRd.
+
 ? I still see "judder" in videos. Why?
 ? Despite the fact that AFRd correctly switches refresh rate, I still
 ? see frame judder on playback.
